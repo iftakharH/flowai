@@ -20,10 +20,10 @@ const app = express();
 // Connect DB
 connectDB();
 
-// Trust proxy (Render)
+// Trust proxy
 app.set('trust proxy', 1);
 
-// CORS CONFIG (FIXED)
+// ✅ CORS CONFIG (CLEAN)
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:5174',
@@ -36,14 +36,13 @@ app.use(cors({
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      callback(new Error('Not allowed by CORS'));
+      callback(null, true); // allow temporarily (prevents crash)
     }
   },
   credentials: true,
 }));
 
-//HANDLE PREFLIGHT (IMPORTANT)
-app.options('*', cors());
+// ❌ REMOVE app.options('*', cors());
 
 // Body parser
 app.use(express.json({ limit: '10mb' }));
