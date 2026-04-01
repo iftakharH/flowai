@@ -1,0 +1,77 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+
+@theme {
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui;
+  --color-brand-200: #e9d5ff;
+  --color-brand-400: #c084fc;
+  --color-brand-500: #a855f7;
+  --color-brand-600: #9333ea;
+  --color-brand-700: #7e22ce;
+}
+
+@layer base {
+  body {
+    @apply bg-slate-950 text-slate-200 font-sans antialiased selection:bg-brand-500/30 selection:text-brand-200 overflow-x-hidden transition-colors duration-500;
+  }
+}
+
+@layer components {
+  .glass-card {
+    @apply bg-white/[0.03] backdrop-blur-3xl border border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] rounded-[2.5rem] transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)];
+  }
+  
+  .glass-card-hover {
+    @apply hover:bg-white/[0.06] hover:border-white/20 hover:scale-[1.01] hover:shadow-brand-500/10 hover:shadow-2xl duration-700;
+  }
+
+  .text-glow {
+    text-shadow: 0 0 30px rgba(168, 85, 247, 0.4);
+  }
+
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    @apply bg-slate-950;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-slate-800 rounded-full hover:bg-slate-700 transition-colors;
+  }
+}
+
+/* 2026 Liquid Motions */
+@keyframes float {
+  0% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-20px) rotate(2deg); }
+  100% { transform: translateY(0px) rotate(0deg); }
+}
+
+.animate-float {
+  animation: float 10s ease-in-out infinite;
+}
+
+/* 2026 Gradient Blurs (Purple/Amethyst) */
+.orb-brand {
+  @apply absolute rounded-full blur-[140px] opacity-25 pointer-events-none animate-pulse;
+  background: radial-gradient(circle, #9333ea 0%, transparent 70%);
+  transition: all 4s ease-in-out;
+}
+
+.orb-accent {
+  @apply absolute rounded-full blur-[100px] opacity-15 pointer-events-none;
+  background: radial-gradient(circle, #3b82f6 0%, transparent 70%);
+}
+
+/* Bento Grid Utilities */
+.bento-grid {
+  @apply grid gap-8 grid-cols-1 md:grid-cols-4 auto-rows-[minmax(200px,auto)];
+}
+
+.bento-item-large {
+  @apply md:col-span-2 md:row-span-2;
+}
+
+.bento-item-medium {
+  @apply md:col-span-2;
+}
