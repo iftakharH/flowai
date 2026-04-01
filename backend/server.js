@@ -15,14 +15,15 @@ const csvRoutes = require('./routes/csvRoutes.js');
 const budgetRoutes = require('./routes/budgetRoutes.js');
 const insightRoutes = require('./routes/insightRoutes.js');
 
-connectDB();
-
 const app = express();
 
-// Trust proxy (for Render)
+// Connect DB
+connectDB();
+
+// Trust proxy (Render)
 app.set('trust proxy', 1);
 
-// CORS
+// CORS CONFIG (FIXED)
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:5174',
@@ -30,7 +31,6 @@ const allowedOrigins = [
   'https://flowai-purple.vercel.app',
 ];
 
-// CORS configuration
 app.use(cors({
   origin: function (origin, callback) {
     if (!origin || allowedOrigins.includes(origin)) {
@@ -42,10 +42,13 @@ app.use(cors({
   credentials: true,
 }));
 
+//HANDLE PREFLIGHT (IMPORTANT)
+app.options('*', cors());
+
 // Body parser
 app.use(express.json({ limit: '10mb' }));
 
-// Clerk middleware
+// Clerk
 app.use(clerkMiddleware());
 
 // Security
