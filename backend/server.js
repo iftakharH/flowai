@@ -70,6 +70,9 @@ app.use('/api/transactions', transactionRoutes);
 app.use('/api/budgets', budgetRoutes);
 app.use('/api/insights', insightRoutes);
 
+// Backward-compatible route alias for clients missing the /api prefix.
+app.use('/insights', insightRoutes);
+
 // Health check
 app.get('/api/health', (req, res) => {
   const { getAuth } = require('@clerk/express');
