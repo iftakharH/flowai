@@ -6,21 +6,16 @@ import {
   Navigate,
   useLocation,
 } from 'react-router-dom';
-import {
-  SignedIn,
-  SignedOut,
-  ClerkLoaded,
-  ClerkLoading,
-  AuthenticateWithRedirectCallback,
-} from '@clerk/clerk-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Loader2 } from 'lucide-react';
 
 import ApiProvider from './components/ApiProvider';
+import ProtectedRoute from './components/ProtectedRoute';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import Transactions from './pages/Transactions';
+import useAuthContext from './context/useAuthContext';
 
 // ─── Loading Screen ─────────────────────────────────────────────────────────
 const LoadingScreen = () => (
@@ -50,71 +45,39 @@ const PageWrapper = ({ children }) => (
   </motion.div>
 );
 
-// ─── Routes with Clerk Auth Guards ──────────────────────────────────────────
+// ─── Routes with Auth Guards ────────────────────────────────────────────────
 function AnimatedRoutes() {
   const location = useLocation();
+  const { loading, isSignedIn } = useAuthContext();
+
+  if (loading) {
+    return <LoadingScreen />;
+  }
 
   return (
-    <>
-      <ClerkLoading>
-        <LoadingScreen />
-      </ClerkLoading>
+    <AnimatePresence mode="wait">
+      <Routes location={location} key={location.pathname}>
+        <Route
+          path="/login"
+          element={isSignedIn ? <Navigate to="/" replace /> : <PageWrapper><Login /></PageWrapper>}
+        />
+        <Route
+          path="/register"
+          element={isSignedIn ? <Navigate to="/" replace /> : <PageWrapper><Register /></PageWrapper>}
+        />
 
-      <ClerkLoaded>
-        <AnimatePresence mode="wait">
-          <Routes location={location} key={location.pathname}>
-            {/* Auth pages — redirect to dashboard if already signed in */}
-            <Route
-              path="/login"
-              element={
-                <>
-                  <SignedIn><Navigate to="/" replace /></SignedIn>
-                  <SignedOut><PageWrapper><Login /></PageWrapper></SignedOut>
-                </>
-              }
-            />
-            <Route
-              path="/register"
-              element={
-                <>
-                  <SignedIn><Navigate to="/" replace /></SignedIn>
-                  <SignedOut><PageWrapper><Register /></PageWrapper></SignedOut>
-                </>
-              }
-            />
+        <Route
+          path="/"
+          element={<ProtectedRoute><PageWrapper><Dashboard /></PageWrapper></ProtectedRoute>}
+        />
+        <Route
+          path="/transactions"
+          element={<ProtectedRoute><PageWrapper><Transactions /></PageWrapper></ProtectedRoute>}
+        />
 
-            {/* SSO OAuth callback — required for Google/Apple login */}
-            <Route
-              path="/sso-callback"
-              element={<AuthenticateWithRedirectCallback />}
-            />
-
-            {/* Protected app pages */}
-            <Route
-              path="/"
-              element={
-                <>
-                  <SignedIn><PageWrapper><Dashboard /></PageWrapper></SignedIn>
-                  <SignedOut><Navigate to="/login" replace /></SignedOut>
-                </>
-              }
-            />
-            <Route
-              path="/transactions"
-              element={
-                <>
-                  <SignedIn><PageWrapper><Transactions /></PageWrapper></SignedIn>
-                  <SignedOut><Navigate to="/login" replace /></SignedOut>
-                </>
-              }
-            />
-
-            {/* Fallback */}
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </AnimatePresence>
-      </ClerkLoaded>
-    </>
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </AnimatePresence>
   );
 }
 

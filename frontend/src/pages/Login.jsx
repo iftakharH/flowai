@@ -1,22 +1,18 @@
 import React, { useState } from 'react';
-import { useSignIn } from '@clerk/clerk-react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Activity, Mail, Lock, ArrowRight, Loader2, AlertCircle } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
+import useAuthContext from '../context/useAuthContext';
 
 const Login = () => {
-  const { isLoaded, signIn, setActive } = useSignIn();
+  const { signInWithEmail, signInWithGoogle } = useAuthContext();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
-
-  if (!isLoaded) {
-    return null;
-  }
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -24,30 +20,26 @@ const Login = () => {
     setError('');
 
     try {
-      const result = await signIn.create({
-        identifier: email,
-        password,
-      });
-
-      if (result.status === 'complete') {
-        await setActive({ session: result.createdSessionId });
-        navigate('/');
-      } else {
-        setError('Verification required. Please check your email.');
-      }
+      await signInWithEmail(email, password);
+      navigate('/');
     } catch (err) {
-      setError(err.errors?.[0]?.message || 'Invalid credentials');
+      setError(err.message || 'Invalid credentials');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSocialLogin = (strategy) => {
-    signIn.authenticateWithRedirect({
-      strategy,
-      redirectUrl: `${window.location.origin}/sso-callback`,
-      redirectUrlComplete: `${window.location.origin}/`,
-    });
+  const handleGoogleLogin = async () => {
+    setError('');
+    setLoading(true);
+    try {
+      await signInWithGoogle();
+      navigate('/');
+    } catch (err) {
+      setError(err.message || 'Google sign-in failed');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -63,7 +55,7 @@ const Login = () => {
         className="w-full max-w-md relative z-10"
       >
         <div className="bg-white/3 backdrop-blur-3xl border border-white/10 rounded-[40px] p-8 md:p-12 shadow-2xl overflow-hidden group">
-          <div className="absolute inset-0 bg-gradient-to-br from-brand-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-1000" />
+          <div className="absolute inset-0 bg-linear-to-br from-brand-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-1000" />
           
           <div className="mb-10 text-center relative z-10">
             <motion.div 
@@ -138,22 +130,15 @@ const Login = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4 relative z-10">
+           <div className="grid grid-cols-1 gap-4 relative z-10">
              <button 
               type="button"
-              onClick={() => handleSocialLogin('oauth_google')}
+              onClick={handleGoogleLogin}
+              disabled={loading}
               className="flex items-center justify-center gap-3 h-14 rounded-2xl bg-white/3 border border-white/5 hover:bg-white/8 transition-all text-white font-bold text-sm"
              >
                 <img src="https://fonts.gstatic.com/s/i/productlogos/googleg/v6/24px.svg" className="w-5 h-5" alt="Google" />
                 Google
-             </button>
-             <button 
-              type="button"
-              onClick={() => handleSocialLogin('oauth_apple')}
-              className="flex items-center justify-center gap-3 h-14 rounded-2xl bg-white/3 border border-white/5 hover:bg-white/8 transition-all text-white font-bold text-sm"
-             >
-                <svg className="w-5 h-5 fill-current" viewBox="0 0 384 512"><path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z"/></svg>
-                Apple
              </button>
           </div>
 

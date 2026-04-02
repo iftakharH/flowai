@@ -3,7 +3,6 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
-const { clerkMiddleware } = require('@clerk/express');
 
 // Database
 const connectDB = require('./config/db.js');
@@ -47,9 +46,6 @@ app.use(cors({
 // Body parser
 app.use(express.json({ limit: '10mb' }));
 
-// Clerk
-app.use(clerkMiddleware());
-
 // Security
 app.use(
   helmet({
@@ -75,13 +71,9 @@ app.use('/insights', insightRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
-  const { getAuth } = require('@clerk/express');
-  const auth = getAuth(req);
-
   res.status(200).json({
     status: 'OK',
     message: 'FlowAI API Running',
-    userId: auth?.userId || null,
   });
 });
 
