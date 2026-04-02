@@ -1,26 +1,37 @@
-const { getAuth } = require('@clerk/express');
+const { initializeFirebaseAdmin } = require('../config/firebaseAdmin.js');
 
-const protect = (req, res, next) => {
+const protect = async (req, res, next) => {
   try {
-    const auth = getAuth(req);
-    
-    // Log the full auth object during debugging so we can see what Clerk returns
-    if (!auth?.userId) {
-      console.warn('[FLOWAI_AUTH] Failed to extract userId.');
-      console.warn('[FLOWAI_AUTH] Auth object:', JSON.stringify(auth, null, 2));
-      console.warn('[FLOWAI_AUTH] Authorization header present:', !!req.headers.authorization);
-      return res.status(401).json({ 
+    const authHeader = req.headers.authorization || '';
+    const match = authHeader.match(/^Bearer\s+(.+)$/i);
+
+    if (!match) {
+      return res.status(401).json({
         success: false,
-        message: 'Unauthorized — FlowAI Identity Bridge failed. Ensure you are signed in.' 
+        message: 'Unauthorized - missing Firebase ID token',
       });
     }
-    
-    req.user = { _id: auth.userId };
-    console.log(`[FLOWAI_AUTH] Identity verified: ${auth.userId} → ${req.method} ${req.originalUrl}`);
+
+    const idToken = match[1];
+    const firebaseAuth = initializeFirebaseAdmin();
+    const decoded = await firebaseAuth.verifyIdToken(idToken);
+
+    req.user = {
+      _id: decoded.uid,
+      email: decoded.email || null,
+    };
     next();
   } catch (error) {
-    console.error('[FLOWAI_AUTH] Exception:', error.message);
-    return res.status(500).json({ message: 'Auth bridge exception' });
+    const statusCode = error.code === 'auth/id-token-expired' || error.code === 'auth/argument-error'
+      ? 401
+      : 500;
+
+    return res.status(statusCode).json({
+      success: false,
+      message: statusCode === 401
+        ? 'Unauthorized - invalid Firebase ID token'
+        : 'Auth verification exception',
+    });
   }
 };
 

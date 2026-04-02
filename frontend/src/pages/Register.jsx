@@ -1,27 +1,21 @@
 import React, { useState } from 'react';
-import { useSignUp } from '@clerk/clerk-react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Activity, User, Mail, Lock, ArrowRight, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Activity, User, Mail, Lock, ArrowRight, Loader2, AlertCircle } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import toast from 'react-hot-toast';
+import useAuthContext from '../context/useAuthContext';
 
 const Register = () => {
-  const { isLoaded, signUp, setActive } = useSignUp();
+  const { signUpWithEmail, signInWithGoogle } = useAuthContext();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
-  const [pendingVerification, setPendingVerification] = useState(false);
-  const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
-
-  if (!isLoaded) {
-    return null;
-  }
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -29,51 +23,27 @@ const Register = () => {
     setError('');
 
     try {
-      await signUp.create({
-        emailAddress: email,
-        password,
-        firstName,
-        lastName,
-      });
-
-      await signUp.prepareEmailAddressVerification({ strategy: 'email_code' });
-      setPendingVerification(true);
-      toast.success('Check your email for verification code');
+      await signUpWithEmail(email, password, firstName, lastName);
+      toast.success('Account created successfully');
+      navigate('/');
     } catch (err) {
-      setError(err.errors?.[0]?.message || 'Registration failed');
+      setError(err.message || 'Registration failed');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleVerify = async (e) => {
-    e.preventDefault();
+  const handleGoogleSignup = async () => {
     setLoading(true);
-
+    setError('');
     try {
-      const completeSignUp = await signUp.attemptEmailAddressVerification({
-        code,
-      });
-
-      if (completeSignUp.status === 'complete') {
-        await setActive({ session: completeSignUp.createdSessionId });
-        navigate('/');
-      } else {
-        setError('Verification incomplete. Please try again.');
-      }
+      await signInWithGoogle();
+      navigate('/');
     } catch (err) {
-      setError(err.errors?.[0]?.message || 'Invalid verification code');
+      setError(err.message || 'Google sign-up failed');
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleSocialLogin = (strategy) => {
-    signUp.authenticateWithRedirect({
-      strategy,
-      redirectUrl: `${window.location.origin}/sso-callback`,
-      redirectUrlComplete: `${window.location.origin}/`,
-    });
   };
 
   return (
@@ -99,31 +69,23 @@ const Register = () => {
               <Activity className="text-white" size={32} />
             </motion.div>
             <h1 className="text-4xl font-black text-white tracking-tighter mb-2">
-              {pendingVerification ? 'Verify Identity' : 'Join FlowAI'}
+              Join FlowAI
             </h1>
             <p className="text-slate-400 font-medium">
-              {pendingVerification ? 'Establish your neural link' : 'The next evolution of finance starts here'}
+              The next evolution of finance starts here
             </p>
           </div>
 
-          {!pendingVerification ? (
-            <div className="space-y-8 relative z-10">
-              <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-8 relative z-10">
+                <div className="grid grid-cols-1 gap-4">
                  <button 
                   type="button"
-                  onClick={() => handleSocialLogin('oauth_google')}
+                  onClick={handleGoogleSignup}
+                  disabled={loading}
                   className="flex items-center justify-center gap-3 h-14 rounded-2xl bg-white/3 border border-white/5 hover:bg-white/8 transition-all text-white font-bold text-sm"
                  >
                     <img src="https://fonts.gstatic.com/s/i/productlogos/googleg/v6/24px.svg" className="w-5 h-5" alt="Google" />
                     Google
-                 </button>
-                 <button 
-                  type="button"
-                  onClick={() => handleSocialLogin('oauth_apple')}
-                  className="flex items-center justify-center gap-3 h-14 rounded-2xl bg-white/3 border border-white/5 hover:bg-white/8 transition-all text-white font-bold text-sm"
-                 >
-                    <svg className="w-5 h-5 fill-current" viewBox="0 0 384 512"><path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z"/></svg>
-                    Apple
                  </button>
               </div>
 
@@ -213,48 +175,6 @@ const Register = () => {
                 </Button>
               </form>
             </div>
-          ) : (
-            <form onSubmit={handleVerify} className="space-y-6 relative z-10">
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] text-center block mb-6">Quantum Authentication Code</label>
-                <Input
-                  type="text"
-                  placeholder="000 000"
-                  value={code}
-                  onChange={(e) => setCode(e.target.value)}
-                  required
-                  maxLength={6}
-                  className="bg-white/3 border-white/10 text-white h-20 rounded-3xl text-center text-3xl tracking-[0.6em] font-black focus:ring-brand-500/30"
-                />
-              </div>
-
-              {error && (
-                <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-2xl text-rose-400 text-sm font-medium">
-                  {error}
-                </div>
-              )}
-
-              <Button 
-                type="submit" 
-                disabled={loading}
-                className="w-full h-16 rounded-2xl bg-white text-slate-950 hover:bg-slate-100 font-black text-xl shadow-2xl transition-all"
-              >
-                {loading ? <Loader2 className="animate-spin" size={24} /> : (
-                  <span className="flex items-center gap-2">
-                    Verify Link <CheckCircle2 size={24} />
-                  </span>
-                )}
-              </Button>
-
-              <button 
-                type="button" 
-                onClick={() => setPendingVerification(false)}
-                className="w-full text-xs font-bold text-slate-500 hover:text-white transition-colors tracking-widest uppercase"
-              >
-                ← Return to Induction
-              </button>
-            </form>
-          )}
 
           <div className="mt-10 text-center relative z-10 border-t border-white/5 pt-8">
             <p className="text-slate-500 text-sm font-medium">

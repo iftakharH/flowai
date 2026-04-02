@@ -2,13 +2,8 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App.jsx';
 import './index.css';
-import { ClerkProvider } from '@clerk/clerk-react';
 import { Toaster } from 'react-hot-toast';
-
-const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
-if (!PUBLISHABLE_KEY) {
-  console.error("CRITICAL: Missing VITE_CLERK_PUBLISHABLE_KEY. Application will likely stall.");
-}
+import { AuthProvider } from './context/AuthContext';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -16,10 +11,10 @@ if (!rootElement) {
 } else {
   ReactDOM.createRoot(rootElement).render(
     <React.StrictMode>
-      <ClerkProvider publishableKey={PUBLISHABLE_KEY || ''}>
+      <AuthProvider>
         <App />
         <Toaster position="top-right" />
-      </ClerkProvider>
+      </AuthProvider>
     </React.StrictMode>,
   );
 }

@@ -14,7 +14,6 @@ const api = axios.create({
   withCredentials: true,
 });
 
-// We rely on <ApiProvider> inside AppLayout to inject the Clerk Token 
-// dynamically since it requires the useAuth hook inside react context.
+// <ApiProvider> injects Firebase ID tokens into each request.
 
 export default api;
