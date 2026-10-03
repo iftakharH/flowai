@@ -1,138 +1,86 @@
 import React, { useState } from 'react';
-import { Home, ArrowRightLeft, Activity, ShieldCheck, Zap, BarChart3, LogOut, CircleUser } from 'lucide-react';
+import { Activity, ArrowRightLeft, BarChart3, CircleUser, Home, LogOut, Settings, ShieldCheck } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import useAuthContext from '../context/useAuthContext';
+import useSettings from '../context/useSettings';
+
+const navigation = [
+  { path: '/', icon: Home, label: 'Overview' },
+  { path: '/transactions', icon: ArrowRightLeft, label: 'Transactions' },
+  { path: '/budget', icon: BarChart3, label: 'Budgets' },
+];
 
 const AppLayout = ({ children }) => {
-   const { user, logout } = useAuthContext();
-   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
-   const avatarLabel = (user?.displayName || user?.email || 'U').trim().charAt(0).toUpperCase();
-   const profileName = user?.displayName || 'Profile';
-   const profileEmail = user?.email || 'Signed in with Firebase';
+  const { user, logout } = useAuthContext();
+  const { settings } = useSettings();
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const avatarLabel = (user?.displayName || user?.email || 'U').trim().charAt(0).toUpperCase();
+  const profileName = user?.displayName || 'Your account';
+  const profileEmail = user?.email || 'Signed in with Firebase';
 
-   const handleLogout = async () => {
-      setProfileMenuOpen(false);
-      await logout();
-   };
+  const handleLogout = async () => {
+    setProfileMenuOpen(false);
+    await logout();
+    window.location.replace('/');
+  };
+
+  const renderNav = (mobile = false) => navigation.map(({ path, icon: Icon, label }) => (
+    <NavLink
+      key={path}
+      to={path}
+      end={path === '/'}
+      aria-label={label}
+      className={({ isActive }) => `nav-link ${isActive ? 'nav-link-active' : ''}`}
+    >
+      <Icon size={mobile ? 21 : 18} strokeWidth={1.8} />
+      {!mobile && <span>{label}</span>}
+    </NavLink>
+  ));
 
   return (
-    <div className="flex min-h-screen bg-slate-950 text-slate-200 selection:bg-brand-500/30">
-      
-      {/* Desktop Premium Sidebar */}
-      <div className="hidden md:flex w-28 flex-col items-center py-12 border-r border-white/5 bg-white/1 backdrop-blur-3xl z-50 sticky top-0 h-screen">
-         <motion.div 
-          whileHover={{ scale: 1.1, rotate: 10 }}
-          className="mb-14 p-4 bg-brand-600 rounded-3xl text-white shadow-[0_0_40px_rgba(147,51,234,0.3)] cursor-pointer"
-         >
-            <Activity size={28} />
-         </motion.div>
-         
-         <nav className="flex flex-col gap-10 items-center flex-1">
-            {[
-              { path: '/', icon: Home, label: 'Core' },
-              { path: '/transactions', icon: ArrowRightLeft, label: 'Ledger' },
-              { path: '/budget', icon: BarChart3, label: 'Strategy' }
-            ].map((navItem) => (
-              <NavLink 
-                key={navItem.path} 
-                to={navItem.path}
-                className={({ isActive }) => `
-                  relative p-4 rounded-2xl transition-all duration-500 group
-                  ${isActive ? 'bg-brand-600/20 text-brand-400 border border-brand-500/20 shadow-[0_0_20px_rgba(147,51,234,0.1)]' : 'text-slate-500 hover:text-white hover:bg-white/5'}
-                `}
-              >
-                 <navItem.icon size={26} />
-                 <div className="absolute left-full ml-6 px-3 py-2 bg-brand-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl opacity-0 invisible group-hover:visible group-hover:opacity-100 transition-all pointer-events-none whitespace-nowrap z-100">
-                    {navItem.label}
-                 </div>
-              </NavLink>
-            ))}
-         </nav>
+    <div className="app-shell flex">
+      <aside className="desktop-sidebar">
+        <NavLink to="/" className="brand-lockup" aria-label="FlowAI overview">
+          <span className="brand-mark"><Activity size={18} strokeWidth={2} /></span>
+          <span><span className="brand-name">FlowAI</span><span className="brand-note">personal finance</span></span>
+        </NavLink>
+        <nav className="desktop-nav" aria-label="Main navigation">{renderNav()}</nav>
+      </aside>
 
-         {/* Fixed Profile Section */}
-         <div className="mt-auto flex flex-col items-center gap-6 pb-4 pt-10 border-t border-white/5 w-full">
-                  <div className="group relative flex flex-col items-center">
-                                 <button
-                                    type="button"
-                                    onClick={() => setProfileMenuOpen((value) => !value)}
-                                    className="w-12 h-12 border-2 border-brand-500/20 hover:border-brand-500 transition-all duration-500 shadow-lg rounded-full bg-white/5 text-white font-black flex items-center justify-center"
-                                    title="Open profile menu"
-                                 >
-                                    {avatarLabel}
-                                 </button>
-                      <span className="mt-2 text-[8px] font-black text-slate-500 uppercase tracking-tighter opacity-0 group-hover:opacity-100 transition-opacity">Profile</span>
-                      {profileMenuOpen && (
-                         <div className="absolute left-full top-0 ml-4 w-60 rounded-3xl border border-white/10 bg-slate-950/95 backdrop-blur-2xl shadow-2xl p-4 z-50">
-                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Account</p>
-                            <p className="mt-2 text-sm font-bold text-white truncate">{profileName}</p>
-                            <p className="text-xs text-slate-400 truncate">{profileEmail}</p>
-                            <button
-                               type="button"
-                               onClick={handleLogout}
-                               className="mt-4 w-full h-11 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-white text-sm font-bold flex items-center justify-center gap-2"
-                            >
-                               <LogOut size={16} />
-                               Logout
-                            </button>
-                         </div>
-                      )}
-            </div>
-            <div className="p-3 text-brand-500 hover:text-brand-400 cursor-pointer transition-colors">
-              <Zap size={20} className="animate-pulse" />
-            </div>
-         </div>
-      </div>
+      <div className="app-body">
+        <header className="app-topbar">
+          <div className="topbar-context">
+            <span className="topbar-kicker">FlowAI</span>
+            <span className="topbar-title">Your money, in plain view</span>
+          </div>
+          <div className="topbar-actions">
+            <button
+              type="button"
+              className="account-trigger topbar-account-trigger"
+              onClick={() => setProfileMenuOpen((value) => !value)}
+              aria-expanded={profileMenuOpen}
+              aria-label="Open account menu"
+            >
+              <span className="avatar">{avatarLabel}</span>
+              <span className="account-copy topbar-account-copy"><span className="account-name">{profileName}</span><span className="account-email">{profileEmail}</span></span>
+              <CircleUser className="mobile-account-icon" size={20} strokeWidth={1.8} />
+            </button>
+            {profileMenuOpen && (
+              <div className="profile-menu">
+                <div className="profile-menu-heading"><span className="avatar">{avatarLabel}</span><div><strong>{profileName}</strong><small>{profileEmail}</small></div></div>
+                <NavLink to="/settings" onClick={() => setProfileMenuOpen(false)}><Settings size={16} /> Settings</NavLink>
+                {settings.isAdmin && <NavLink to="/admin" onClick={() => setProfileMenuOpen(false)}><ShieldCheck size={16} /> Admin workspace</NavLink>}
+                <button type="button" onClick={handleLogout}><LogOut size={16} /> Sign out</button>
+              </div>
+            )}
+          </div>
+        </header>
 
-      {/* Mobile Bottom Navigation */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-slate-950/90 backdrop-blur-3xl border-t border-white/10 px-10 py-4 flex items-center justify-between z-50 rounded-t-[2.5rem]">
-         <NavLink to="/" className={({ isActive }) => `p-3 rounded-2xl ${isActive ? 'text-brand-400 bg-brand-500/10' : 'text-slate-500'}`}>
-            <Home size={26} />
-         </NavLink>
-         <NavLink to="/transactions" className={({ isActive }) => `p-3 rounded-2xl ${isActive ? 'text-brand-400 bg-brand-500/10' : 'text-slate-500'}`}>
-            <ArrowRightLeft size={26} />
-         </NavLink>
-             <button
-                type="button"
-                onClick={() => setProfileMenuOpen((value) => !value)}
-                className="p-3 border-2 border-brand-500/20 rounded-full text-brand-400"
-                title="Open profile menu"
-             >
-               <CircleUser size={22} />
-             </button>
-      </div>
+        <main className="app-main"><div className="content-frame">{children}</div></main>
 
-         {profileMenuOpen && (
-            <div className="md:hidden fixed inset-x-4 bottom-24 z-60 rounded-3xl border border-white/10 bg-slate-950/95 backdrop-blur-2xl shadow-2xl p-4">
-               <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Account</p>
-               <p className="mt-2 text-sm font-bold text-white truncate">{profileName}</p>
-               <p className="text-xs text-slate-400 truncate">{profileEmail}</p>
-               <button
-                  type="button"
-                  onClick={handleLogout}
-                  className="mt-4 w-full h-11 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-white text-sm font-bold flex items-center justify-center gap-2"
-               >
-                  <LogOut size={16} />
-                  Logout
-               </button>
-            </div>
-         )}
-
-      {/* Content Area */}
-      <div className="flex-1 flex flex-col min-w-0">
-         <header className="md:hidden py-6 px-8 flex justify-between items-center border-b border-white/5 bg-slate-950/50 backdrop-blur-xl sticky top-0 z-40">
-            <div className="flex items-center gap-3">
-               <Activity className="text-brand-500" size={24} />
-               <span className="text-2xl font-black tracking-tighter text-white uppercase italic">FlowAI</span>
-            </div>
-            <ShieldCheck className="text-slate-600" size={20} />
-         </header>
-
-         <main className="flex-1 overflow-x-hidden pt-8 pb-32 md:pb-12 px-6 md:px-16">
-            <div className="max-w-450 mx-auto w-full h-full">
-               {children}
-            </div>
-         </main>
+        <nav className="mobile-bottom-nav" aria-label="Mobile navigation">
+          {renderNav(true)}
+        </nav>
       </div>
     </div>
   );

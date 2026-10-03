@@ -23,7 +23,16 @@ export default defineConfig([
       },
     },
     rules: {
-      'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]|motion' }],
+      // Identifiers that look like components (Icon, Card, motion...) are exempt,
+      // including destructured props, because core no-unused-vars does not
+      // track usage inside JSX.
+      'no-unused-vars': [
+        'error',
+        {
+          varsIgnorePattern: '^[A-Z_]|motion',
+          argsIgnorePattern: '^[A-Z_]|motion',
+        },
+      ],
     },
   },
 ])

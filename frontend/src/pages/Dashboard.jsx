@@ -1,684 +1,404 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import AppLayout from '../components/AppLayout';
-import api from '../services/api';
-import { 
-  TrendingUp, TrendingDown, Sparkles, Activity, Target, ArrowUpRight, 
-  Zap, AlertCircle, Brain, Shield, Cpu, BarChart2, 
-  ArrowDownRight, Clock, ChevronRight, Layers
-} from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
-  AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip,
-  ResponsiveContainer, CartesianGrid, Legend
+  Activity,
+  ArrowDownRight,
+  ArrowUpRight,
+  BarChart3,
+  Check,
+  CircleAlert,
+  Clock3,
+  ShieldCheck,
+  Sparkles,
+  Target,
+  TrendingDown,
+  TrendingUp,
+  WalletCards,
+} from 'lucide-react';
+import {
+  Area,
+  AreaChart,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Legend,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
 } from 'recharts';
+import AppLayout from '../components/AppLayout';
+import AffordabilityWidget from '../components/AffordabilityWidget';
+import ProGate from '../components/ProGate';
+import QuoteRotator from '../components/QuoteRotator';
+import api from '../services/api';
+import { formatCompact, formatCurrency } from '../utils/format';
 
-// ─── Helpers ────────────────────────────────────────────────────────────────
-const formatCurrency = (amount) =>
-  new Intl.NumberFormat('en-US', {
-    style: 'currency', currency: 'USD', maximumFractionDigits: 0
-  }).format(Number(amount) || 0);
+const CustomTooltip = ({ active, payload, label }) => {
+  if (!active || !payload?.length) return null;
 
-const formatCompact = (amount) => {
-  const n = Number(amount) || 0;
-  if (Math.abs(n) >= 1000) return `$${(n / 1000).toFixed(1)}k`;
-  return `$${n.toFixed(0)}`;
-};
-
-// ─── Sub-components ──────────────────────────────────────────────────────────
-const MetricCard = ({ icon: Icon, label, value, sub, color = 'brand', trend }) => {
-  const colors = {
-    brand: 'text-brand-400 bg-brand-500/10 border-brand-500/20',
-    rose: 'text-rose-400 bg-rose-500/10 border-rose-500/20',
-    amber: 'text-amber-400 bg-amber-500/10 border-amber-500/20',
-    emerald: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
-    blue: 'text-blue-400 bg-blue-500/10 border-blue-500/20',
-  };
   return (
-    <motion.div
-      variants={{ hidden: { y: 20, opacity: 0 }, show: { y: 0, opacity: 1 } }}
-      whileHover={{ y: -4, transition: { duration: 0.2 } }}
-      className={`glass-card p-6 md:p-8 border ${colors[color]} group cursor-default`}
-    >
-      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-6 border ${colors[color]}`}>
-        <Icon size={22} />
-      </div>
-      <p className="text-[10px] font-black text-slate-500 uppercase tracking-[.2em] mb-2">{label}</p>
-      <h3 className="text-3xl font-black text-white mb-1">{value}</h3>
-      {sub && <p className="text-xs font-medium text-slate-500">{sub}</p>}
-      {trend !== undefined && (
-        <div className={`flex items-center gap-1 mt-3 text-xs font-bold ${trend >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-          {trend >= 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
-          {trend >= 0 ? '+' : ''}{trend}% vs last month
-        </div>
-      )}
-    </motion.div>
+    <div className="chart-tooltip">
+      <p>{label}</p>
+      {payload.map((entry) => (
+        <span key={entry.dataKey} style={{ color: entry.color }}>
+          {entry.name} {formatCurrency(entry.value)}
+        </span>
+      ))}
+    </div>
   );
 };
 
-const AIInsightCard = ({ title, description, tag, urgent = false }) => (
-  <motion.div
-    whileHover={{ scale: 1.01 }}
-    className={`p-5 rounded-2xl border transition-all cursor-pointer ${
-      urgent 
-        ? 'bg-brand-500/5 border-brand-500/30 hover:border-brand-500/60' 
-        : 'bg-white/[0.02] border-white/5 hover:border-white/10'
-    }`}
-  >
-    <div className="flex items-start justify-between gap-4">
-      <div className="flex-1">
-        <div className="flex items-center gap-2 mb-2">
-          {urgent && <span className="w-1.5 h-1.5 bg-brand-500 rounded-full animate-pulse" />}
-          <p className={`text-sm font-black uppercase tracking-wide ${urgent ? 'text-brand-400' : 'text-white'}`}>{title}</p>
-        </div>
-        <p className="text-xs font-medium text-slate-400 leading-relaxed">{description}</p>
-      </div>
-      <ChevronRight size={16} className="text-slate-600 shrink-0 mt-0.5" />
-    </div>
-    {tag && (
-      <div className="mt-3">
-        <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-full ${urgent ? 'bg-brand-500/20 text-brand-400' : 'bg-white/5 text-slate-500'}`}>
-          {tag}
+const Metric = ({ label, value, detail, tone = 'sage', trend }) => (
+  <article className={`metric-card ${tone === 'coral' ? 'metric-negative' : ''}`}>
+    <div className="flex items-center justify-between gap-3">
+      <span className="metric-label">{label}</span>
+      {trend !== undefined && (
+        <span className={`metric-trend ${trend >= 0 ? 'status-positive' : 'status-negative'}`}>
+          {trend >= 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
+          {trend >= 0 ? '+' : ''}{trend}%
         </span>
-      </div>
-    )}
-  </motion.div>
+      )}
+    </div>
+    <p className="metric-value">{value}</p>
+    <p className="metric-detail">{detail}</p>
+  </article>
 );
 
-const CustomTooltip = ({ active, payload, label }) => {
-  if (active && payload && payload.length) {
-    return (
-      <div className="bg-slate-900 border border-white/10 rounded-2xl p-4 shadow-2xl text-xs">
-        <p className="text-slate-400 font-bold uppercase tracking-widest mb-2">{label}</p>
-        {payload.map((entry) => (
-          <p key={entry.dataKey} style={{ color: entry.color }} className="font-black">
-            {entry.name}: {formatCurrency(entry.value)}
-          </p>
-        ))}
-      </div>
-    );
-  }
-  return null;
-};
-
-// ─── Main Dashboard ──────────────────────────────────────────────────────────
 const Dashboard = () => {
   const [summary, setSummary] = useState(null);
+  const [flowSeries, setFlowSeries] = useState({ daily: [], monthly: [] });
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [activeChart, setActiveChart] = useState('flow'); // 'flow' | 'compare'
+  const [error, setError] = useState('');
+  const [activeChart, setActiveChart] = useState('flow');
+  const [smart, setSmart] = useState({ recurring: [], anomalies: [], forecast: null });
 
   const fetchData = async () => {
     setLoading(true);
-    setError(null);
+    setError('');
     try {
-      const [sumRes, txRes] = await Promise.all([
+      const [sumRes, flowRes, txRes] = await Promise.all([
         api.get('/insights/summary'),
-        api.get('/transactions?limit=100'),
+        api.get('/insights/flow'),
+        api.get('/transactions?limit=5'),
       ]);
       setSummary(sumRes.data || {});
+      setFlowSeries(flowRes.data || { daily: [], monthly: [] });
       setTransactions(txRes.data?.transactions || []);
+      Promise.allSettled([
+        api.get('/smart/recurring'),
+        api.get('/smart/anomalies'),
+        api.get('/smart/forecast'),
+      ]).then(([recurring, anomalies, forecast]) => {
+        setSmart({
+          recurring: recurring.status === 'fulfilled' ? recurring.value.data.items || [] : [],
+          anomalies: anomalies.status === 'fulfilled' ? anomalies.value.data.items || [] : [],
+          forecast: forecast.status === 'fulfilled' ? forecast.value.data : null,
+        });
+      });
     } catch (err) {
-      console.error('FlowAI: Failed to sync financial matrix', err);
-      setError(err.response?.data?.message || 'Neural sync interrupted. Check connection.');
+      console.error('FlowAI: failed to load overview', err);
+      setError(err.response?.data?.message || 'The overview could not be loaded.');
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => {
+    fetchData();
+  }, []);
 
   const metrics = useMemo(() => {
     const now = new Date();
-    const currentMonth = now.getMonth();
-    const currentYear = now.getFullYear();
-    const lastMonth = currentMonth === 0 ? 11 : currentMonth - 1;
-    const lastYear = currentMonth === 0 ? currentYear - 1 : currentYear;
-
-    const txArr = Array.isArray(transactions) ? transactions : [];
-
-    const thisMonthTx = txArr.filter(t => {
-      const d = new Date(t.date);
-      return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
-    });
-
-    const lastMonthTx = txArr.filter(t => {
-      const d = new Date(t.date);
-      return d.getMonth() === lastMonth && d.getFullYear() === lastYear;
-    });
-
-    const sum = (arr, type) => arr
-      .filter(t => t.type === type)
-      .reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
-
-    const thisIncome = sum(thisMonthTx, 'income');
-    const thisExpense = sum(thisMonthTx, 'expense');
-    const lastIncome = sum(lastMonthTx, 'income');
-    const lastExpense = sum(lastMonthTx, 'expense');
-
+    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
     const daysPassed = now.getDate() || 1;
-    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
     const daysLeft = Math.max(1, daysInMonth - daysPassed);
-    const dailyBurn = daysPassed > 0 ? thisExpense / daysPassed : 0;
-    const projectedExpense = thisExpense + (dailyBurn * daysLeft);
-
+    const thisIncome = Number(summary?.monthIncome) || 0;
+    const thisExpense = Number(summary?.monthExpense) || 0;
+    const lastIncome = Number(summary?.lastMonthIncome) || 0;
+    const lastExpense = Number(summary?.lastMonthExpense) || 0;
     const balance = Number(summary?.remainingBalance) || 0;
-    const safeToSpend = balance > 0 ? balance / daysLeft : 0;
-
-    const categoryTotals = {};
-    thisMonthTx.filter(t => t.type === 'expense').forEach(t => {
-      const cat = t.category || 'Other';
-      categoryTotals[cat] = (categoryTotals[cat] || 0) + (Number(t.amount) || 0);
-    });
-    const topCategory = Object.entries(categoryTotals)
-      .sort((a, b) => b[1] - a[1])[0] || ['No data', 0];
-
-    // 7-day chart data
-    const flowData = [];
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date(today);
-      d.setDate(d.getDate() - i);
-      const ts = d.getTime();
-      const dayTx = txArr.filter(t => {
-        const td = new Date(t.date);
-        td.setHours(0, 0, 0, 0);
-        return td.getTime() === ts;
-      });
-      flowData.push({
-        name: d.toLocaleDateString('en-US', { weekday: 'short' }),
-        income: dayTx.filter(t => t.type === 'income').reduce((s, t) => s + (Number(t.amount) || 0), 0),
-        expense: dayTx.filter(t => t.type === 'expense').reduce((s, t) => s + (Number(t.amount) || 0), 0),
-      });
-    }
-
-    // Monthly comparison (last 6 months)
-    const compareData = [];
-    for (let i = 5; i >= 0; i--) {
-      const month = (currentMonth - i + 12) % 12;
-      const year = currentMonth - i < 0 ? currentYear - 1 : currentYear;
-      const mTx = txArr.filter(t => {
-        const d = new Date(t.date);
-        return d.getMonth() === month && d.getFullYear() === year;
-      });
-      compareData.push({
-        name: new Date(year, month, 1).toLocaleDateString('en-US', { month: 'short' }),
-        income: sum(mTx, 'income'),
-        expense: sum(mTx, 'expense'),
-      });
-    }
-
-    const incomeTrend = lastIncome > 0 ? Math.round(((thisIncome - lastIncome) / lastIncome) * 100) : 0;
-    const expenseTrend = lastExpense > 0 ? Math.round(((thisExpense - lastExpense) / lastExpense) * 100) : 0;
+    const dailyBurn = thisExpense / daysPassed;
+    const projectedExpense = thisExpense + dailyBurn * daysLeft;
+    const topCategory = summary?.topCategory
+      ? [summary.topCategory.name, summary.topCategory.amount]
+      : ['No category yet', 0];
 
     return {
-      thisIncome, thisExpense, balance, safeToSpend, dailyBurn,
-      projectedExpense, topCategory, flowData, compareData,
-      incomeTrend, expenseTrend, txCount: txArr.length,
+      balance,
+      thisIncome,
+      thisExpense,
+      safeToSpend: balance > 0 ? balance / daysLeft : 0,
+      dailyBurn,
+      projectedExpense,
+      topCategory,
+      txCount: Number(summary?.totalTransactions) || 0,
+      incomeTrend: lastIncome > 0 ? Math.round(((thisIncome - lastIncome) / lastIncome) * 100) : undefined,
+      expenseTrend: lastExpense > 0 ? Math.round(((thisExpense - lastExpense) / lastExpense) * 100) : undefined,
+      flowData: (flowSeries.daily || []).map((item) => ({
+        name: item.label,
+        income: item.income,
+        expense: item.expense,
+      })),
+      compareData: (flowSeries.monthly || []).map((item) => ({
+        name: item.label,
+        income: item.income,
+        expense: item.expense,
+      })),
     };
-  }, [transactions, summary]);
+  }, [flowSeries, summary]);
 
-  // ── AI Insights (dynamic based on data) ──────────────────────────────────
-  const aiInsights = useMemo(() => {
-    const insights = [];
-    const bal = metrics.balance;
-    const projected = metrics.projectedExpense;
-    const income = metrics.thisIncome;
-
-    if (projected > income && income > 0) {
-      insights.push({
-        title: 'Burn Rate Alert',
-        description: `At your current velocity of ${formatCompact(metrics.dailyBurn)}/day, you are projected to overspend by ${formatCompact(projected - income)} this month.`,
-        tag: 'Critical',
-        urgent: true,
+  const notes = useMemo(() => {
+    const items = [];
+    if (metrics.projectedExpense > metrics.thisIncome && metrics.thisIncome > 0) {
+      items.push({
+        title: 'Your current pace is high',
+        copy: `At ${formatCompact(metrics.dailyBurn)} a day, spending may pass this month's income.`,
+        tone: 'coral',
       });
     }
-
     if (metrics.topCategory[1] > 0) {
-      const pct = income > 0 ? ((metrics.topCategory[1] / income) * 100).toFixed(0) : '?';
-      insights.push({
-        title: `Pressure Point: ${metrics.topCategory[0]}`,
-        description: `"${metrics.topCategory[0]}" claims ${pct}% of your monthly flow. Reducing it by 15% adds ${formatCompact(metrics.topCategory[1] * 0.15)} back to your runway.`,
-        tag: 'Optimize',
-        urgent: false,
+      items.push({
+        title: `${metrics.topCategory[0]} leads spending`,
+        copy: `${formatCurrency(metrics.topCategory[1])} has gone there this month.`,
+        tone: 'sage',
       });
     }
-
-    if (bal > 0 && metrics.safeToSpend > 0) {
-      insights.push({
-        title: 'Daily Safe Limit',
-        description: `You can safely allocate ${formatCompact(metrics.safeToSpend)}/day through end of month without risking your capital position.`,
-        tag: 'Guidance',
-        urgent: false,
+    if (metrics.balance > 0) {
+      items.push({
+        title: 'A daily limit keeps the month calm',
+        copy: `${formatCompact(metrics.safeToSpend)} is available per day through month end.`,
+        tone: 'neutral',
       });
     }
-
-    if (insights.length === 0) {
-      insights.push({
-        title: 'FlowAI Calibrating',
-        description: 'Add your income and expenses to unlock personalized AI guidance, predictions, and financial optimization signals.',
-        tag: 'Getting Started',
-        urgent: false,
+    if (!items.length) {
+      items.push({
+        title: 'Your picture is still forming',
+        copy: 'Add an income or expense to start seeing useful patterns.',
+        tone: 'neutral',
       });
     }
-
-    return insights;
+    return items;
   }, [metrics]);
 
-  const container = {
-    hidden: { opacity: 0 },
-    show: { opacity: 1, transition: { staggerChildren: 0.07 } }
-  };
-  const item = { hidden: { y: 24, opacity: 0 }, show: { y: 0, opacity: 1 } };
+  const monthName = new Intl.DateTimeFormat('en-US', { month: 'long' }).format(new Date());
 
-  // ── Loading State ──────────────────────────────────────────────────────────
   if (loading) {
     return (
       <AppLayout>
-        <div className="p-4 space-y-8 animate-pulse">
-          <div className="h-16 w-72 bg-white/5 rounded-3xl" />
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            {[...Array(4)].map((_, i) => (
-              <div key={i} className="h-40 bg-white/5 rounded-3xl" />
-            ))}
+        <div className="space-y-7">
+          <div className="h-40 animate-pulse rounded-2xl bg-[#e7ebe4]" />
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
+            {[1, 2, 3].map((item) => <div key={item} className="h-28 animate-pulse rounded-xl bg-[#e7ebe4]" />)}
           </div>
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 h-80 bg-white/5 rounded-3xl" />
-            <div className="h-80 bg-white/5 rounded-3xl" />
-          </div>
+          <div className="h-80 animate-pulse rounded-2xl bg-[#e7ebe4]" />
         </div>
       </AppLayout>
     );
   }
 
-  // ── Error State ────────────────────────────────────────────────────────────
   if (error) {
     return (
       <AppLayout>
-        <div className="min-h-[70vh] flex flex-col items-center justify-center p-8 text-center">
-          <motion.div
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            className="w-24 h-24 bg-rose-500/10 rounded-full flex items-center justify-center mb-8 border border-rose-500/20"
-          >
-            <AlertCircle size={48} className="text-rose-500" />
-          </motion.div>
-          <h2 className="text-3xl font-black text-white mb-4 tracking-tighter">Sync Failure</h2>
-          <p className="text-slate-400 font-medium max-w-md mb-10 leading-relaxed">{error}</p>
-          <button
-            onClick={fetchData}
-            className="h-14 px-10 rounded-2xl bg-brand-600 hover:bg-brand-500 text-white font-black transition-all shadow-xl shadow-brand-500/20"
-          >
-            Retry Connection
-          </button>
+        <div className="empty-state panel p-8">
+          <div>
+            <CircleAlert className="mx-auto mb-4 text-[#a6573c]" size={28} />
+            <h1 className="m-0 text-2xl font-semibold tracking-tight">The overview is unavailable</h1>
+            <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-[var(--muted)]">{error}</p>
+            <button type="button" onClick={fetchData} className="button-primary mt-5">Try again</button>
+          </div>
         </div>
       </AppLayout>
     );
   }
 
-  // ── Main Dashboard ─────────────────────────────────────────────────────────
+  const savingsRate = metrics.thisIncome > 0
+    ? Math.max(0, Math.round(((metrics.thisIncome - metrics.thisExpense) / metrics.thisIncome) * 100))
+    : 0;
+  const balanceProgress = metrics.balance > 0 ? Math.min(100, Math.max(8, (metrics.balance / Math.max(metrics.thisIncome, metrics.balance, 1)) * 100)) : 4;
+
   return (
     <AppLayout>
-      <div className="relative space-y-8 pb-8">
-        {/* Ambient orbs */}
-        <div className="orb-brand fixed top-[-10%] right-[-5%] w-[32rem] h-[32rem] opacity-20 pointer-events-none" />
-        <div className="orb-accent fixed bottom-[5%] left-[-8%] w-[24rem] h-[24rem] opacity-10 pointer-events-none" />
-
-        {/* ── Header ── */}
-        <motion.header
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 pt-2"
-        >
+      <div className="space-y-7 pb-4">
+        <header className="page-header">
           <div>
-            <div className="flex items-center gap-3 mb-3">
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-brand-500/10 border border-brand-500/20 rounded-full">
-                <span className="w-1.5 h-1.5 bg-brand-400 rounded-full animate-pulse" />
-                <span className="text-[10px] font-black text-brand-400 uppercase tracking-widest">AI Engine Active</span>
+            <p className="eyebrow">{monthName} overview</p>
+            <h1 className="page-title">Know what is available.</h1>
+            <p className="page-subtitle">A clear read of your money today, with useful guidance for the next decision.</p>
+          </div>
+          <div className="panel flex items-center gap-3 px-4 py-3 text-sm text-[var(--muted)]">
+            <Activity size={17} className="text-[var(--sage-dark)]" />
+            <span>{metrics.txCount} recorded {metrics.txCount === 1 ? 'transaction' : 'transactions'}</span>
+          </div>
+        </header>
+
+        <QuoteRotator />
+
+        <section className="panel balance-panel p-5 md:p-7">
+          <div className="flex flex-col justify-between gap-7 md:flex-row md:items-end">
+            <div>
+              <p className="section-note">Available balance</p>
+              <p className={`balance-value ${metrics.balance < 0 ? 'status-negative' : ''}`}>{formatCurrency(metrics.balance)}</p>
+              <div className={`flex items-center gap-2 text-sm font-semibold ${metrics.balance >= 0 ? 'status-positive' : 'status-negative'}`}>
+                {metrics.balance >= 0 ? <TrendingUp size={15} /> : <TrendingDown size={15} />}
+                {metrics.balance >= 0 ? 'You are in positive flow' : 'Spending is ahead of income'}
               </div>
             </div>
-            <h1 className="text-5xl md:text-6xl font-black tracking-tighter text-white italic">
-              Capital <span className="text-brand-500" style={{ textShadow: '0 0 40px rgba(147,51,234,0.4)' }}>Intelligence</span>
-            </h1>
-            <p className="text-slate-500 font-medium mt-2 text-lg">
-              Your autonomous money operating system — {metrics.txCount} events logged
-            </p>
+            <div className="balance-aside">
+              <p className="section-note">Expected monthly spending</p>
+              <p className="projection-value">{formatCurrency(metrics.projectedExpense)}</p>
+              <p className="mt-1 text-sm text-[var(--muted)]">At the current daily pace</p>
+            </div>
+          </div>
+          <div className="mt-7">
+            <div className="balance-track"><span style={{ width: `${balanceProgress}%` }} /></div>
+            <div className="mt-2 flex justify-between text-xs text-[var(--muted)]">
+              <span>Current position</span>
+              <span>{formatCompact(metrics.safeToSpend)} safe per day</span>
+            </div>
+          </div>
+        </section>
+
+        <section className="grid grid-cols-1 gap-5 sm:grid-cols-3">
+          <Metric label="Income this month" value={formatCurrency(metrics.thisIncome)} detail="Money in" trend={metrics.incomeTrend} />
+          <Metric label="Spent this month" value={formatCurrency(metrics.thisExpense)} detail="Money out" tone="coral" trend={metrics.expenseTrend} />
+          <Metric label="Comfortable to spend today" value={formatCurrency(metrics.safeToSpend)} detail="Based on your balance and days left" />
+        </section>
+
+        <section className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.5fr)_minmax(19rem,0.65fr)]">
+          <div className="panel chart-panel p-5 md:p-7">
+            <div className="section-heading">
+              <div>
+                <p className="section-note">Money in motion</p>
+                <h2 className="section-title">Flow over time</h2>
+              </div>
+              <div className="chart-tabs" role="tablist" aria-label="Flow chart range">
+                <button type="button" className={activeChart === 'flow' ? 'chart-tab-active' : ''} onClick={() => setActiveChart('flow')}>7 days</button>
+                <button type="button" className={activeChart === 'compare' ? 'chart-tab-active' : ''} onClick={() => setActiveChart('compare')}>6 months</button>
+              </div>
+            </div>
+            <div className="chart-wrap">
+              <ResponsiveContainer width="100%" height="100%">
+                {activeChart === 'flow' ? (
+                  <AreaChart data={metrics.flowData} margin={{ top: 10, right: 4, bottom: 0, left: -18 }}>
+                    <defs>
+                      <linearGradient id="incomeFill" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#657b67" stopOpacity={0.25} />
+                        <stop offset="100%" stopColor="#657b67" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid vertical={false} stroke="rgba(23,32,29,0.08)" />
+                    <XAxis dataKey="name" tick={{ fill: '#718078', fontSize: 11 }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fill: '#718078', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(value) => `$${value}`} />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Area type="monotone" dataKey="income" name="Income" stroke="#657b67" strokeWidth={2} fill="url(#incomeFill)" />
+                    <Area type="monotone" dataKey="expense" name="Spent" stroke="#c97958" strokeWidth={2} fill="none" />
+                  </AreaChart>
+                ) : (
+                  <BarChart data={metrics.compareData} margin={{ top: 10, right: 4, bottom: 0, left: -18 }}>
+                    <CartesianGrid vertical={false} stroke="rgba(23,32,29,0.08)" />
+                    <XAxis dataKey="name" tick={{ fill: '#718078', fontSize: 11 }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fill: '#718078', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(value) => `$${value}`} />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Legend wrapperStyle={{ fontSize: 11, color: '#718078' }} />
+                    <Bar dataKey="income" name="Income" fill="#657b67" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="expense" name="Spent" fill="#c97958" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                )}
+              </ResponsiveContainer>
+            </div>
           </div>
 
-          {/* Balance pill */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.3 }}
-            className="glass-card px-8 py-6 border-brand-500/20 min-w-[260px]"
-          >
-            <p className="text-[9px] font-black text-slate-500 uppercase tracking-[.3em] mb-3 flex items-center gap-2">
-              <Shield size={10} className="text-brand-500" /> Net Position
-            </p>
-            <p className={`text-4xl font-black tracking-tighter ${metrics.balance >= 0 ? 'text-white' : 'text-rose-400'}`}>
-              {formatCurrency(metrics.balance)}
-            </p>
-            <div className="flex items-center gap-2 mt-3">
-              {metrics.balance >= 0
-                ? <TrendingUp size={14} className="text-emerald-400" />
-                : <TrendingDown size={14} className="text-rose-400" />
-              }
-              <span className={`text-xs font-bold ${metrics.balance >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                {metrics.balance >= 0 ? 'Positive' : 'Negative'} flow
-              </span>
+          <div className="panel p-5 md:p-7">
+            <div className="section-heading">
+              <div>
+                <p className="section-note">A little context</p>
+                <h2 className="section-title">Worth noticing</h2>
+              </div>
+              <Sparkles size={19} className="text-[var(--sage-dark)]" />
             </div>
-          </motion.div>
-        </motion.header>
-
-        {/* ── KPI Row ── */}
-        <motion.div
-          variants={container}
-          initial="hidden"
-          animate="show"
-          className="grid grid-cols-2 lg:grid-cols-4 gap-4"
-        >
-          <MetricCard
-            icon={TrendingUp}
-            label="Monthly Income"
-            value={formatCurrency(metrics.thisIncome)}
-            sub="Total inflows this month"
-            color="emerald"
-            trend={metrics.incomeTrend}
-          />
-          <MetricCard
-            icon={TrendingDown}
-            label="Monthly Burn"
-            value={formatCurrency(metrics.thisExpense)}
-            sub="Total outflows this month"
-            color="rose"
-            trend={metrics.expenseTrend}
-          />
-          <MetricCard
-            icon={Target}
-            label="Daily Safe Limit"
-            value={formatCurrency(metrics.safeToSpend)}
-            sub="AI-calibrated per day"
-            color="brand"
-          />
-          <MetricCard
-            icon={Cpu}
-            label="Top Expense"
-            value={metrics.topCategory[0]}
-            sub={metrics.topCategory[1] > 0 ? formatCurrency(metrics.topCategory[1]) + ' this month' : 'No data yet'}
-            color="amber"
-          />
-        </motion.div>
-
-        {/* ── Chart + AI Panel ── */}
-        <motion.div
-          variants={container}
-          initial="hidden"
-          animate="show"
-          className="grid grid-cols-1 lg:grid-cols-3 gap-6"
-        >
-          {/* Main Chart */}
-          <motion.div variants={item} className="lg:col-span-2">
-            <div className="glass-card p-6 md:p-8 border-white/5 h-full">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-                <div>
-                  <h3 className="text-xl font-black text-white uppercase tracking-tight flex items-center gap-3">
-                    <BarChart2 size={20} className="text-brand-400" />
-                    Capital Flow
-                  </h3>
-                  <p className="text-xs text-slate-500 font-medium mt-1">Income vs. Expense visualization</p>
-                </div>
-                <div className="flex items-center gap-2 p-1 bg-white/5 rounded-2xl">
-                  {[['flow', '7 Days'], ['compare', '6 Months']].map(([key, label]) => (
-                    <button
-                      key={key}
-                      onClick={() => setActiveChart(key)}
-                      className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wide transition-all ${
-                        activeChart === key 
-                          ? 'bg-brand-600 text-white shadow-lg shadow-brand-500/20' 
-                          : 'text-slate-500 hover:text-white'
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div style={{ height: '256px', minHeight: '256px' }}>
-                <AnimatePresence mode="wait">
-                  <motion.div
-                    key={activeChart}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.3 }}
-                    style={{ height: '100%' }}
-                  >
-                    <ResponsiveContainer width="100%" height="100%">
-                      {activeChart === 'flow' ? (
-                        <AreaChart data={metrics.flowData} margin={{ top: 5, right: 5, bottom: 0, left: 0 }}>
-                          <defs>
-                            <linearGradient id="incGrad" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor="#34d399" stopOpacity={0.3} />
-                              <stop offset="95%" stopColor="#34d399" stopOpacity={0} />
-                            </linearGradient>
-                            <linearGradient id="expGrad" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.3} />
-                              <stop offset="95%" stopColor="#f43f5e" stopOpacity={0} />
-                            </linearGradient>
-                          </defs>
-                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" />
-                          <XAxis dataKey="name" tick={{ fill: '#64748b', fontSize: 11, fontWeight: 700 }} axisLine={false} tickLine={false} />
-                          <YAxis tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => `$${v}`} />
-                          <Tooltip content={<CustomTooltip />} />
-                          <Area type="monotone" dataKey="income" name="Income" stroke="#34d399" strokeWidth={3} fill="url(#incGrad)" />
-                          <Area type="monotone" dataKey="expense" name="Expense" stroke="#f43f5e" strokeWidth={3} fill="url(#expGrad)" />
-                        </AreaChart>
-                      ) : (
-                        <BarChart data={metrics.compareData} margin={{ top: 5, right: 5, bottom: 0, left: 0 }}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" />
-                          <XAxis dataKey="name" tick={{ fill: '#64748b', fontSize: 11, fontWeight: 700 }} axisLine={false} tickLine={false} />
-                          <YAxis tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => `$${v}`} />
-                          <Tooltip content={<CustomTooltip />} />
-                          <Legend 
-                            wrapperStyle={{ paddingTop: '16px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em' }} 
-                          />
-                          <Bar dataKey="income" name="Income" fill="#34d399" fillOpacity={0.85} radius={[6, 6, 0, 0]} />
-                          <Bar dataKey="expense" name="Expense" fill="#f43f5e" fillOpacity={0.85} radius={[6, 6, 0, 0]} />
-                        </BarChart>
-                      )}
-                    </ResponsiveContainer>
-                  </motion.div>
-                </AnimatePresence>
-              </div>
-
-              {/* Projection banner */}
-              {metrics.txCount > 0 && (
-                <div className="mt-6 p-4 bg-white/[0.02] border border-white/5 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <Zap size={16} className="text-brand-400 shrink-0" />
-                    <div>
-                      <p className="text-xs font-black text-white uppercase tracking-wide">Month-End Projection</p>
-                      <p className="text-xs text-slate-500">
-                        At current burn rate: {formatCurrency(metrics.projectedExpense)} total spend by end of month
-                      </p>
-                    </div>
+            <div className="insight-list">
+              {notes.map((note) => (
+                <div key={note.title} className={`insight-item insight-${note.tone}`}>
+                  <span className="insight-icon">{note.tone === 'coral' ? <CircleAlert size={15} /> : <Check size={15} />}</span>
+                  <div>
+                    <p className="insight-title">{note.title}</p>
+                    <p className="insight-copy">{note.copy}</p>
                   </div>
-                  <span className={`shrink-0 text-xs font-black px-3 py-1.5 rounded-full uppercase tracking-wide ${
-                    metrics.projectedExpense > metrics.thisIncome && metrics.thisIncome > 0
-                      ? 'bg-rose-500/20 text-rose-400'
-                      : 'bg-emerald-500/20 text-emerald-400'
-                  }`}>
-                    {metrics.projectedExpense > metrics.thisIncome && metrics.thisIncome > 0 ? 'Over Budget' : 'On Track'}
+                </div>
+              ))}
+            </div>
+            <div className="mt-7 flex items-center gap-2 border-t border-[var(--soft-line)] pt-4 text-xs text-[var(--muted)]">
+              <Clock3 size={13} /> Updated just now
+            </div>
+          </div>
+        </section>
+
+        <section className="panel p-5 md:p-7">
+          <div className="section-heading"><div><p className="section-note">Quiet automation</p><h2 className="section-title">Signals worth seeing</h2></div><Sparkles size={19} className="text-[var(--sage-dark)]" /></div>
+          <ProGate title="Your money has more patterns to show you" copy="Pro finds recurring commitments, unusual spending, and the likely shape of the next 30 days.">
+            <div className="signals-grid">
+              <div className="signal-card"><span>Recurring commitments</span><strong>{smart.recurring.length}</strong><p>{smart.recurring[0] ? `${smart.recurring[0].category} is about ${formatCurrency(smart.recurring[0].monthlyCost)} a month.` : 'No repeating pattern yet.'}</p></div>
+              <div className="signal-card"><span>Unusual activity</span><strong>{smart.anomalies.length}</strong><p>{smart.anomalies[0]?.reason || 'Nothing unusual in the last 90 days.'}</p></div>
+              <div className="signal-card"><span>Next 30 days</span><strong>{smart.forecast ? formatCurrency(smart.forecast.next30Days) : '--'}</strong><p>{smart.forecast ? `${formatCurrency(smart.forecast.projectedBalance)} projected balance.` : 'Forecast appears once there is enough history.'}</p></div>
+            </div>
+          </ProGate>
+        </section>
+
+        <AffordabilityWidget />
+
+        <section className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+          <div className="panel p-5 md:p-7">
+            <div className="section-heading">
+              <div>
+                <p className="section-note">Latest entries</p>
+                <h2 className="section-title">Recent activity</h2>
+              </div>
+              <a href="/transactions" className="text-sm font-semibold text-[var(--sage-dark)] hover:underline">View ledger</a>
+            </div>
+            <div className="recent-list">
+              {transactions.map((transaction) => (
+                <div key={transaction._id} className="recent-row">
+                  <span className={`recent-icon ${transaction.type === 'income' ? 'recent-income' : 'recent-expense'}`}>
+                    {transaction.type === 'income' ? <ArrowUpRight size={16} /> : <ArrowDownRight size={16} />}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="recent-title">{transaction.category}</p>
+                    <p className="recent-note">{transaction.note || 'No note added'}</p>
+                  </div>
+                  <span className={`recent-amount ${transaction.type === 'income' ? 'status-positive' : 'status-negative'}`}>
+                    {transaction.type === 'income' ? '+' : '-'}{formatCurrency(transaction.amount)}
                   </span>
                 </div>
+              ))}
+              {!transactions.length && (
+                <div className="empty-state"><div><WalletCards size={28} className="mx-auto mb-3" /><p className="m-0 text-sm">Your first entry will appear here.</p></div></div>
               )}
             </div>
-          </motion.div>
+          </div>
 
-          {/* AI Guidance Panel */}
-          <motion.div variants={item}>
-            <div className="glass-card p-6 md:p-8 border-brand-500/10 h-full flex flex-col">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-black text-white uppercase tracking-tight flex items-center gap-3">
-                  <Brain size={18} className="text-brand-400" />
-                  AI Guidance
-                </h3>
-                <div className="flex items-center gap-2 px-2 py-1 bg-brand-500/10 rounded-full border border-brand-500/20">
-                  <span className="w-1 h-1 bg-brand-400 rounded-full animate-pulse" />
-                  <span className="text-[8px] font-black text-brand-400 uppercase tracking-widest">Live</span>
-                </div>
+          <div className="panel p-5 md:p-7">
+            <div className="section-heading">
+              <div>
+                <p className="section-note">This month</p>
+                <h2 className="section-title">Financial health</h2>
               </div>
-
-              <div className="space-y-3 flex-1">
-                {aiInsights.map((insight, i) => (
-                  <AIInsightCard key={i} {...insight} />
-                ))}
-              </div>
-
-              <div className="mt-6 pt-6 border-t border-white/5">
-                <div className="flex items-center gap-3 text-xs text-slate-600">
-                  <Clock size={12} />
-                  <span>Updated just now · Powered by FlowAI Engine</span>
-                </div>
-              </div>
+              <ShieldCheck size={19} className="text-[var(--sage-dark)]" />
             </div>
-          </motion.div>
-        </motion.div>
-
-        {/* ── Recent Activity + Stats ── */}
-        <motion.div
-          variants={container}
-          initial="hidden"
-          animate="show"
-          className="grid grid-cols-1 lg:grid-cols-2 gap-6"
-        >
-          {/* Recent Transactions */}
-          <motion.div variants={item}>
-            <div className="glass-card p-6 md:p-8">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-black text-white uppercase tracking-tight flex items-center gap-2">
-                  <Activity size={18} className="text-slate-400" /> Recent Activity
-                </h3>
-                <a href="/transactions" className="text-xs font-black text-brand-400 hover:text-brand-300 uppercase tracking-widest flex items-center gap-1">
-                  All <ArrowUpRight size={12} />
-                </a>
-              </div>
-              <div className="space-y-3">
-                {transactions.slice(0, 5).map((t) => (
-                  <div key={t._id} className="flex items-center gap-4 py-2">
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                      t.type === 'income' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'
-                    }`}>
-                      {t.type === 'income' ? <ArrowUpRight size={18} /> : <ArrowDownRight size={18} />}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold text-white truncate">{t.category}</p>
-                      <p className="text-xs text-slate-500 truncate">{t.note || 'No description'}</p>
-                    </div>
-                    <p className={`text-sm font-black shrink-0 ${t.type === 'income' ? 'text-emerald-400' : 'text-rose-400'}`}>
-                      {t.type === 'income' ? '+' : '-'}{formatCurrency(t.amount)}
-                    </p>
-                  </div>
-                ))}
-                {transactions.length === 0 && (
-                  <div className="py-16 flex flex-col items-center text-center text-slate-600">
-                    <Layers size={40} className="opacity-20 mb-4" />
-                    <p className="text-xs font-black uppercase tracking-widest opacity-30">No transactions yet</p>
-                    <p className="text-xs text-slate-700 mt-1">Add your first entry from the Ledger page</p>
-                  </div>
-                )}
-              </div>
+            <div className="health-list">
+              <div className="health-row"><span>Savings rate</span><strong>{savingsRate}%</strong><div className="health-track"><span style={{ width: `${Math.min(100, savingsRate)}%` }} /></div></div>
+              <div className="health-row"><span>Top category</span><strong>{metrics.topCategory[0]}</strong><div className="health-track"><span style={{ width: `${metrics.topCategory[1] > 0 ? 64 : 4}%` }} /></div></div>
+              <div className="health-row"><span>Daily spending</span><strong>{formatCurrency(metrics.dailyBurn)}</strong><div className="health-track"><span style={{ width: `${Math.min(100, metrics.thisIncome ? (metrics.thisExpense / metrics.thisIncome) * 100 : 4)}%` }} /></div></div>
             </div>
-          </motion.div>
-
-          {/* Financial Health Score */}
-          <motion.div variants={item}>
-            <div className="glass-card p-6 md:p-8 h-full">
-              <h3 className="text-lg font-black text-white uppercase tracking-tight flex items-center gap-2 mb-6">
-                <Sparkles size={18} className="text-brand-400" /> Financial Health
-              </h3>
-
-              <div className="space-y-5">
-                {[
-                  {
-                    label: 'Savings Rate',
-                    value: metrics.thisIncome > 0 
-                      ? Math.max(0, Math.round(((metrics.thisIncome - metrics.thisExpense) / metrics.thisIncome) * 100)) 
-                      : 0,
-                    color: '#34d399',
-                    target: 20,
-                    unit: '%',
-                  },
-                  {
-                    label: 'Budget Adherence',
-                    value: metrics.thisIncome > 0
-                      ? Math.min(100, Math.round((1 - metrics.thisExpense / metrics.thisIncome) * 100 + 50))
-                      : 0,
-                    color: '#a855f7',
-                    target: 80,
-                    unit: '%',
-                  },
-                  {
-                    label: 'Burn Rate vs. Income',
-                    value: metrics.thisIncome > 0
-                      ? Math.round((metrics.thisExpense / metrics.thisIncome) * 100)
-                      : 0,
-                    color: '#f59e0b',
-                    target: 70,
-                    unit: '%',
-                    invert: true,
-                  },
-                ].map((stat) => {
-                  const capped = Math.min(100, Math.max(0, stat.value));
-                  const isGood = stat.invert ? capped <= stat.target : capped >= stat.target;
-                  return (
-                    <div key={stat.label}>
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-xs font-bold text-slate-400 uppercase tracking-wide">{stat.label}</span>
-                        <span className="text-sm font-black text-white">{stat.value}{stat.unit}</span>
-                      </div>
-                      <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden">
-                        <motion.div
-                          initial={{ width: 0 }}
-                          animate={{ width: `${capped}%` }}
-                          transition={{ duration: 1.2, delay: 0.3, ease: 'easeOut' }}
-                          style={{ backgroundColor: stat.color }}
-                          className="h-full rounded-full"
-                        />
-                      </div>
-                      <p className={`text-[9px] font-black uppercase tracking-widest mt-1 ${isGood ? 'text-emerald-500' : 'text-rose-500'}`}>
-                        {isGood ? '✓ On target' : '⚠ Needs attention'}
-                      </p>
-                    </div>
-                  );
-                })}
+            <div className="score-strip">
+              <div>
+                <p className="section-note">Money health</p>
+                <strong>{metrics.txCount ? Math.min(100, Math.round(Math.max(0, savingsRate) * 0.7 + 30)) : '--'}</strong>
               </div>
-
-              <div className="mt-8 p-4 bg-brand-500/5 border border-brand-500/20 rounded-2xl">
-                <p className="text-xs font-black text-brand-400 uppercase tracking-widest mb-1">FlowAI Score</p>
-                <div className="flex items-end gap-2">
-                  <span className="text-4xl font-black text-white">
-                    {metrics.txCount === 0 ? '--' : (
-                      Math.min(100, Math.round(
-                        (metrics.thisIncome > 0 ? 
-                          Math.max(0, ((metrics.thisIncome - metrics.thisExpense) / metrics.thisIncome) * 100) 
-                          : 0) * 0.7 + 30
-                      ))
-                    )}
-                  </span>
-                  {metrics.txCount > 0 && <span className="text-slate-600 font-bold text-lg mb-1">/100</span>}
-                </div>
-                <p className="text-xs text-slate-600 mt-1">
-                  {metrics.txCount === 0 ? 'Add transactions to compute your score' : 'Based on flow patterns, savings rate, and burn ratio'}
-                </p>
-              </div>
+              <p>{metrics.txCount ? 'Built from your income, spend, and daily pace.' : 'Add a transaction to start the reading.'}</p>
             </div>
-          </motion.div>
-        </motion.div>
-
+          </div>
+        </section>
       </div>
     </AppLayout>
   );

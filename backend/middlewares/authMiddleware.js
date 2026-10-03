@@ -19,6 +19,7 @@ const protect = async (req, res, next) => {
     req.user = {
       _id: decoded.uid,
       email: decoded.email || null,
+      name: decoded.name || '',
     };
     next();
   } catch (error) {

@@ -1,0 +1,12 @@
+{
+  "name": "FlowAI Personal Finance",
+  "short_name": "FlowAI",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f6f4ee",
+  "theme_color": "#17201d",
+  "description": "A clearer view of your money.",
+  "icons": [
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

@@ -11,24 +11,28 @@ import { Loader2 } from 'lucide-react';
 
 import ApiProvider from './components/ApiProvider';
 import ProtectedRoute from './components/ProtectedRoute';
+import ErrorBoundary from './components/ErrorBoundary';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import Transactions from './pages/Transactions';
+import Budget from './pages/Budget';
+import Landing from './pages/Landing';
+import Settings from './pages/Settings';
+import Reports from './pages/Reports';
+import Goals from './pages/Goals';
+import Admin from './pages/Admin';
+import Accounts from './pages/Accounts';
 import useAuthContext from './context/useAuthContext';
+import { SettingsProvider } from './context/SettingsContext';
 
 // ─── Loading Screen ─────────────────────────────────────────────────────────
 const LoadingScreen = () => (
-  <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4">
-    <div className="relative">
-      <div className="w-20 h-20 border-4 border-brand-500/20 rounded-full animate-ping" />
-      <div className="absolute inset-0 flex items-center justify-center">
-        <Loader2 className="text-brand-500 animate-spin" size={36} />
-      </div>
+  <div className="loading-screen">
+    <div className="flex flex-col items-center gap-4">
+      <div className="loading-mark"><Loader2 className="animate-spin" size={20} /></div>
+      <p className="m-0 text-sm font-medium text-[var(--muted)]">Opening your overview</p>
     </div>
-    <p className="mt-8 text-slate-500 font-black tracking-[0.25em] uppercase text-xs animate-pulse">
-      Initializing FlowAI
-    </p>
   </div>
 );
 
@@ -66,14 +70,23 @@ function AnimatedRoutes() {
           element={isSignedIn ? <Navigate to="/" replace /> : <PageWrapper><Register /></PageWrapper>}
         />
 
-        <Route
-          path="/"
-          element={<ProtectedRoute><PageWrapper><Dashboard /></PageWrapper></ProtectedRoute>}
-        />
+        <Route path="/" element={isSignedIn ? <ProtectedRoute><PageWrapper><Dashboard /></PageWrapper></ProtectedRoute> : <PageWrapper><Landing /></PageWrapper>} />
         <Route
           path="/transactions"
           element={<ProtectedRoute><PageWrapper><Transactions /></PageWrapper></ProtectedRoute>}
         />
+        <Route
+          path="/budget"
+          element={<ProtectedRoute><PageWrapper><Budget /></PageWrapper></ProtectedRoute>}
+        />
+        <Route
+          path="/settings"
+          element={<ProtectedRoute><PageWrapper><Settings /></PageWrapper></ProtectedRoute>}
+        />
+        <Route path="/reports" element={<ProtectedRoute><PageWrapper><Reports /></PageWrapper></ProtectedRoute>} />
+        <Route path="/goals" element={<ProtectedRoute><PageWrapper><Goals /></PageWrapper></ProtectedRoute>} />
+        <Route path="/admin" element={<ProtectedRoute><PageWrapper><Admin /></PageWrapper></ProtectedRoute>} />
+        <Route path="/accounts" element={<ProtectedRoute><PageWrapper><Accounts /></PageWrapper></ProtectedRoute>} />
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
@@ -84,11 +97,15 @@ function AnimatedRoutes() {
 // ─── App Root ────────────────────────────────────────────────────────────────
 function App() {
   return (
-    <Router>
-      <ApiProvider>
-        <AnimatedRoutes />
-      </ApiProvider>
-    </Router>
+    <ErrorBoundary>
+      <Router>
+        <ApiProvider>
+          <SettingsProvider>
+            <AnimatedRoutes />
+          </SettingsProvider>
+        </ApiProvider>
+      </Router>
+    </ErrorBoundary>
   );
 }
 

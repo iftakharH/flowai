@@ -11,7 +11,8 @@ const buildApiBaseUrl = () => {
 
 const api = axios.create({
   baseURL: buildApiBaseUrl(),
-  withCredentials: true,
+  // Auth is bearer-token based (Firebase ID token), so cookies are not used.
+  withCredentials: false,
 });
 
 // <ApiProvider> injects Firebase ID tokens into each request.

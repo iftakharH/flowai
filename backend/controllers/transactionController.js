@@ -1,4 +1,5 @@
 const { createTransaction, getTransactions, updateTransaction, deleteTransaction } = require('../services/transactionService.js');
+const { parseQuickAdd } = require('../services/smartService.js');
 
 const addTransaction = async (req, res, next) => {
   try {
@@ -23,6 +24,13 @@ const getAllTransactions = async (req, res, next) => {
   }
 };
 
+const addQuickTransaction = async (req, res, next) => {
+  try {
+    const parsed = parseQuickAdd(req.body.text);
+    res.status(201).json(await createTransaction(req.user._id, parsed));
+  } catch (error) { next(error); }
+};
+
 const updateSingleTransaction = async (req, res, next) => {
   try {
     const transaction = await updateTransaction(req.user._id, req.params.id, req.body);
@@ -45,6 +53,7 @@ const deleteSingleTransaction = async (req, res, next) => {
 
 module.exports = {
   addTransaction,
+  addQuickTransaction,
   getAllTransactions,
   updateSingleTransaction,
   deleteSingleTransaction

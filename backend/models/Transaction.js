@@ -6,6 +6,7 @@ const transactionSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    accountId: { type: String, default: '' },
     amount: {
       type: Number,
       required: true,
@@ -34,5 +35,7 @@ const transactionSchema = new mongoose.Schema(
   }
 );
 
+transactionSchema.index({ user: 1, date: -1 });
+transactionSchema.index({ user: 1, type: 1, category: 1, date: -1 });
 const Transaction = mongoose.model('Transaction', transactionSchema);
 module.exports = Transaction;

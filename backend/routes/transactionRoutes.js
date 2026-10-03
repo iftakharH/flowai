@@ -4,6 +4,7 @@ const {
   getAllTransactions,
   updateSingleTransaction,
   deleteSingleTransaction,
+  addQuickTransaction,
 } = require('../controllers/transactionController.js');
 const { protect } = require('../middlewares/authMiddleware.js');
 const validate = require('../middlewares/validateMiddleware.js');
@@ -16,6 +17,8 @@ router.use(protect);
 router.route('/')
   .get(getAllTransactions)
   .post(validate(transactionSchema), addTransaction);
+
+router.post('/quick-add', addQuickTransaction);
 
 router.route('/:id')
   .put(validate(transactionSchema), updateSingleTransaction)

@@ -34,5 +34,6 @@ const budgetSchema = new mongoose.Schema(
   }
 );
 
+budgetSchema.index({ user: 1, type: 1, category: 1 }, { unique: false });
 const Budget = mongoose.model('Budget', budgetSchema);
 module.exports = Budget;

@@ -33,8 +33,13 @@ const getTransactions = async (userId, query) => {
 const updateTransaction = async (userId, transactionId, data) => {
   const transaction = await Transaction.findOne({ _id: transactionId, user: userId });
   if (!transaction) throw new Error('Transaction not found');
-  
-  return await Transaction.findByIdAndUpdate(transactionId, data, { new: true });
+
+  // Scope the update by user as well so ownership cannot be bypassed.
+  return await Transaction.findOneAndUpdate(
+    { _id: transactionId, user: userId },
+    data,
+    { new: true, runValidators: true }
+  );
 };
 
 const deleteTransaction = async (userId, transactionId) => {
