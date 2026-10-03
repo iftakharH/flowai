@@ -1,0 +1,10 @@
+# Keep secrets and junk out of the web image
+node_modules
+dist
+npm-debug.log*
+.env
+.env.*
+.vscode
+.idea
+Dockerfile
+*.md
