@@ -17,6 +17,11 @@ All protected endpoints use `Authorization: Bearer <Firebase ID token>`.
 - `GET /api/settings/export?format=json|csv`
 - `DELETE /api/settings/data`
 
+## Activation
+
+- `POST /api/onboarding` (goal, this month's income, optional first expense)
+- `POST /api/onboarding/skip`
+
 ## Core product
 
 - `GET|POST /api/transactions`
@@ -26,6 +31,7 @@ All protected endpoints use `Authorization: Bearer <Firebase ID token>`.
 - `POST /api/transactions/csv/import`
 - `GET|POST /api/budgets`
 - `DELETE /api/budgets/:id`
+- `GET /api/insights/overview` (cached dashboard payload)
 - `GET /api/insights/summary`
 - `GET /api/insights/flow`
 - `GET /api/insights/budget-status`
@@ -34,6 +40,8 @@ All protected endpoints use `Authorization: Bearer <Firebase ID token>`.
 ## Pro product
 
 - `GET /api/smart/recurring`
+- `POST /api/smart/recurring/:key/dismiss`
+- `DELETE /api/smart/recurring/:key/dismiss`
 - `GET /api/smart/anomalies`
 - `GET /api/smart/forecast`
 - `GET|POST /api/goals`
@@ -43,4 +51,16 @@ All protected endpoints use `Authorization: Bearer <Firebase ID token>`.
 - `POST /api/billing/checkout`
 - `POST /api/billing/portal`
 
+- `GET|POST /api/accounts`
+- `PUT|DELETE /api/accounts/:id`
+
 Pro endpoints return `402` with `code: "PRO_REQUIRED"` when the current profile is on the Free plan.
+
+## Admin
+
+- `GET /api/admin/stats`
+- `GET /api/admin/users?search=`
+- `PATCH /api/admin/users/:id`
+- `DELETE /api/admin/users/:id`
+- `GET /api/quotes` (public)
+- Admin quote CRUD uses the same `/api/quotes` resource.
