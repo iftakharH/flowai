@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Activity, ArrowDownRight, ArrowUpRight, FileDown, Filter, Loader2, Pencil, Plus, Search, Trash2, X } from 'lucide-react';
 import { format } from 'date-fns';
+import { useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import AppLayout from '../components/AppLayout';
 import CSVModal from '../components/CSVModal';
@@ -20,6 +21,7 @@ const toDateInput = (value) => {
 };
 
 const Transactions = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [transactions, setTransactions] = useState([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -31,7 +33,7 @@ const Transactions = () => {
   const [filterCategory, setFilterCategory] = useState('');
   const [filterStartDate, setFilterStartDate] = useState('');
   const [filterEndDate, setFilterEndDate] = useState('');
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(searchParams.get('new') === '1');
   const [isCsvModalOpen, setIsCsvModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -72,6 +74,13 @@ const Transactions = () => {
     // The initial fetch should not re-run when filter state changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (searchParams.get('new') !== '1') return;
+    const next = new URLSearchParams(searchParams);
+    next.delete('new');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   const openCreate = () => {
     setEditing(null);
@@ -185,7 +194,7 @@ const Transactions = () => {
         </section>
 
         <section className="ledger-list" aria-live="polite">
-          {loading ? [1, 2, 3, 4].map((item) => <Skeleton key={item} className="h-24 w-full rounded-xl bg-[#e7ebe4]" />) : null}
+          {loading ? [1, 2, 3, 4].map((item) => <Skeleton key={item} className="h-24 w-full rounded-xl bg-[var(--surface-3)]" />) : null}
           {!loading && !filteredTransactions.length && (
             <div className="empty-state panel p-8">
               <div><Activity size={28} className="mx-auto mb-3" /><p className="m-0 text-sm">No entries match this view.</p><p className="mt-2 text-xs text-[var(--muted)]">Try clearing a filter or add your first transaction.</p></div>

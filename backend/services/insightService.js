@@ -89,6 +89,59 @@ const getSummary = async (userId) => {
 };
 
 // Chart-ready series: last 7 days (daily) and last 6 months (monthly).
+const getWeeklyRecap = async (userId) => {
+  const now = new Date();
+  const currentStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6);
+  const previousStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 13);
+
+  const rows = await Transaction.aggregate([
+    { $match: { user: userId, date: { $gte: previousStart, $lte: now } } },
+    {
+      $group: {
+        _id: {
+          bucket: { $cond: [{ $gte: ['$date', currentStart] }, 'current', 'previous'] },
+          type: '$type',
+          category: '$category',
+        },
+        total: { $sum: '$amount' },
+        count: { $sum: 1 },
+      },
+    },
+  ]);
+
+  let currentSpend = 0;
+  let previousSpend = 0;
+  let currentIncome = 0;
+  let transactionCount = 0;
+  const categories = new Map();
+
+  rows.forEach((row) => {
+    if (row._id.bucket === 'current') {
+      transactionCount += row.count;
+      if (row._id.type === 'income') currentIncome += row.total;
+      if (row._id.type === 'expense') {
+        currentSpend += row.total;
+        categories.set(row._id.category, (categories.get(row._id.category) || 0) + row.total);
+      }
+    } else if (row._id.type === 'expense') {
+      previousSpend += row.total;
+    }
+  });
+
+  const topCategory = [...categories.entries()].sort((a, b) => b[1] - a[1])[0];
+  const change = currentSpend - previousSpend;
+  return {
+    currentSpend,
+    previousSpend,
+    change,
+    changePercent: previousSpend > 0 ? Math.round((change / previousSpend) * 100) : null,
+    currentIncome,
+    transactionCount,
+    topCategory: topCategory ? { name: topCategory[0], amount: topCategory[1] } : null,
+    range: { start: currentStart, end: now },
+  };
+};
+
 const getFlowSeries = async (userId) => {
   const now = new Date();
   const tz = serverTimezoneOffset();
@@ -250,6 +303,7 @@ const getAffordability = async (userId, cost) => {
 
 module.exports = {
   getSummary,
+  getWeeklyRecap,
   getFlowSeries,
   getBudgetStatus,
   getAffordability,

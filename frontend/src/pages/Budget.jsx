@@ -115,7 +115,7 @@ const Budget = () => {
           </div>
         </header>
 
-        {loading && <div className="strategy-layout"><div className="h-96 animate-pulse rounded-2xl bg-[#e7ebe4]" /><div className="h-96 animate-pulse rounded-2xl bg-[#e7ebe4]" /></div>}
+        {loading && <div className="strategy-layout"><div className="h-96 animate-pulse rounded-2xl bg-[var(--surface-3)]" /><div className="h-96 animate-pulse rounded-2xl bg-[var(--surface-3)]" /></div>}
 
         {!loading && error && (
           <div className="empty-state panel p-8">

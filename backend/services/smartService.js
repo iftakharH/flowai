@@ -28,54 +28,116 @@ const parseQuickAdd = (text) => {
   };
 };
 
-const detectRecurring = async (userId) => {
-  const since = new Date();
-  since.setDate(since.getDate() - 180);
-  const transactions = await Transaction.find({ user: userId, type: 'expense', date: { $gte: since } }).sort({ date: 1 }).lean();
+const DAY_MS = 86400000;
+
+const intervalLabel = (days) => {
+  if (days <= 9) return 'Weekly';
+  if (days <= 45) return 'Monthly';
+  if (days <= 120) return 'Quarterly';
+  if (days <= 220) return 'Every 6 months';
+  if (days <= 420) return 'Yearly';
+  return 'Irregular';
+};
+
+const recurringConfidence = (occurrences, interval, gaps) => {
+  if (!gaps.length || interval <= 0) return 'low';
+  const variance = gaps.reduce((sum, gap) => sum + ((gap - interval) ** 2), 0) / gaps.length;
+  const coefficient = Math.sqrt(variance) / interval;
+  if (occurrences >= 3 && coefficient <= 0.18) return 'high';
+  if (occurrences >= 2 && coefficient <= 0.35) return 'medium';
+  return 'low';
+};
+
+const recurringName = (items, fallback) => {
+  const counts = new Map();
+  items.forEach((item) => {
+    const note = (item.note || '').trim();
+    if (note) counts.set(note, (counts.get(note) || 0) + 1);
+  });
+  return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || fallback;
+};
+
+const buildRecurring = (transactions) => {
   const groups = new Map();
   transactions.forEach((item) => {
     const key = `${item.category.toLowerCase()}-${Math.round(item.amount)}`;
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(item);
   });
+
   return [...groups.values()].map((items) => {
     if (items.length < 2) return null;
-    const gaps = items.slice(1).map((item, index) => (new Date(item.date) - new Date(items[index].date)) / 86400000);
+    const gaps = items.slice(1).map((item, index) => (
+      (new Date(item.date) - new Date(items[index].date)) / DAY_MS
+    ));
     const interval = gaps.reduce((sum, value) => sum + value, 0) / gaps.length;
-    if (interval < 6 || interval > 35) return null;
+    if (interval < 6 || interval > 420) return null;
+
+    const last = items[items.length - 1];
+    const key = `${items[0].category.toLowerCase()}-${Math.round(last.amount)}`;
     return {
+      key,
+      name: recurringName(items, items[0].category),
       category: items[0].category,
-      amount: items[items.length - 1].amount,
+      amount: last.amount,
       intervalDays: Math.round(interval),
-      monthlyCost: Math.round((items[items.length - 1].amount * 30 / interval) * 100) / 100,
+      intervalLabel: intervalLabel(interval),
+      monthlyCost: Math.round((last.amount * 30 / interval) * 100) / 100,
+      annualCost: Math.round((last.amount * 365 / interval) * 100) / 100,
       occurrences: items.length,
+      lastDate: last.date,
+      nextExpectedDate: new Date(new Date(last.date).getTime() + interval * DAY_MS),
+      confidence: recurringConfidence(items.length, interval, gaps),
     };
   }).filter(Boolean).sort((a, b) => b.monthlyCost - a.monthlyCost);
+};
+
+const detectRecurring = async (userId, ignoredKeys = []) => {
+  const since = new Date();
+  since.setDate(since.getDate() - 400);
+  const transactions = await Transaction.find({ user: userId, type: 'expense', date: { $gte: since } }).sort({ date: 1 }).lean();
+  const ignored = new Set(ignoredKeys);
+  return buildRecurring(transactions).filter((item) => !ignored.has(item.key));
 };
 
 const detectAnomalies = async (userId) => {
   const since = new Date();
   since.setDate(since.getDate() - 90);
   const transactions = await Transaction.find({ user: userId, type: 'expense', date: { $gte: since } }).lean();
-  const groups = new Map();
+
+  // Build category statistics once instead of recomputing mean and variance
+  // for every transaction. The old version was O(n^2) per request.
+  const stats = new Map();
   transactions.forEach((item) => {
-    if (!groups.has(item.category)) groups.set(item.category, []);
-    groups.get(item.category).push(item.amount);
+    const entry = stats.get(item.category) || { count: 0, total: 0, sumSquares: 0 };
+    entry.count += 1;
+    entry.total += item.amount;
+    entry.sumSquares += item.amount ** 2;
+    stats.set(item.category, entry);
   });
-  const anomalies = [];
-  transactions.forEach((item) => {
-    const values = groups.get(item.category) || [];
-    if (values.length < 3) return;
-    const mean = values.reduce((sum, value) => sum + value, 0) / values.length;
-    const variance = values.reduce((sum, value) => sum + ((value - mean) ** 2), 0) / values.length;
-    const deviation = Math.sqrt(variance);
-    if (item.amount > mean + Math.max(deviation * 2, mean)) anomalies.push({ ...item, reason: `This is much higher than your usual ${item.category} spend.` });
+
+  const deviations = new Map();
+  stats.forEach((entry, category) => {
+    if (entry.count < 3) return;
+    const mean = entry.total / entry.count;
+    const variance = Math.max(0, (entry.sumSquares / entry.count) - (mean ** 2));
+    deviations.set(category, { mean, deviation: Math.sqrt(variance) });
   });
+
+  const anomalies = transactions
+    .filter((item) => {
+      const statsForCategory = deviations.get(item.category);
+      if (!statsForCategory) return false;
+      const { mean, deviation } = statsForCategory;
+      return item.amount > mean + Math.max(deviation * 2, mean);
+    })
+    .map((item) => ({ ...item, reason: `This is much higher than your usual ${item.category} spend.` }));
+
   return anomalies.sort((a, b) => b.amount - a.amount).slice(0, 10);
 };
 
-const forecast = async (userId) => {
-  const summary = await getSummary(userId);
+const forecast = async (userId, summaryInput) => {
+  const summary = summaryInput || await getSummary(userId);
   const since = new Date();
   since.setDate(since.getDate() - 90);
   const expenses = await Transaction.aggregate([
@@ -91,4 +153,10 @@ const forecast = async (userId) => {
   };
 };
 
-module.exports = { parseQuickAdd, detectRecurring, detectAnomalies, forecast };
+module.exports = {
+  parseQuickAdd,
+  buildRecurring,
+  detectRecurring,
+  detectAnomalies,
+  forecast,
+};

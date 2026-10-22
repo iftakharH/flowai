@@ -12,7 +12,7 @@ export const plans = {
     yearlyPrice: 45,
     cadence: 'per month',
     description: 'A private money signal system for people who want to move with confidence.',
-    features: ['Recurring payment detection', 'Anomaly and forecast signals', 'Savings goals and reports', 'Unlimited CSV imports'],
+    features: ['Subscription watch with yearly cost', 'Anomaly and forecast signals', 'Savings goals and reports', 'Unlimited CSV imports'],
   },
 };
 

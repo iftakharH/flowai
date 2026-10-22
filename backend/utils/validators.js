@@ -47,6 +47,19 @@ const quickAddSchema = z.object({
   text: z.string().min(2).max(180),
 });
 
+const onboardingSchema = z.object({
+  goal: z.enum(['control', 'save', 'subscriptions', 'spending'], {
+    message: 'Choose what you want to improve',
+  }),
+  monthlyIncome: z.number().positive({ message: 'Income must be greater than zero' }).max(1000000000),
+  firstExpense: z.object({
+    amount: z.number().positive({ message: 'Amount must be greater than zero' }),
+    category: z.string().min(1).max(60),
+    note: z.string().max(120).optional(),
+    date: z.string().refine((value) => !Number.isNaN(Date.parse(value)), 'Invalid date').optional(),
+  }).optional(),
+});
+
 module.exports = {
   transactionSchema,
   transactionArraySchema,
@@ -54,4 +67,5 @@ module.exports = {
   settingsSchema,
   categorySchema,
   quickAddSchema,
+  onboardingSchema,
 };

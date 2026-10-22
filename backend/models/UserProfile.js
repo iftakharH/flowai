@@ -27,6 +27,11 @@ const userProfileSchema = new mongoose.Schema(
     },
     plan: { type: String, enum: ['free', 'pro'], default: 'free' },
     isAdmin: { type: Boolean, default: false },
+    // New accounts set this to false explicitly in profileService. Legacy
+    // profiles default to true so an upgrade does not force them through setup.
+    onboardingCompleted: { type: Boolean, default: true },
+    onboardingGoal: { type: String, default: '' },
+    ignoredRecurring: { type: [String], default: [] },
     subscriptionStatus: { type: String, default: 'inactive' },
     stripeCustomerId: { type: String, default: '' },
     stripeSubscriptionId: { type: String, default: '' },

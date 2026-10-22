@@ -13,6 +13,10 @@ const errorHandler = (err, req, res, next) => {
     message = 'Resource not found';
   }
 
+  if (statusCode >= 500) {
+    console.error(`FlowAI API ${req.method} ${req.originalUrl}:`, err);
+  }
+
   res.status(statusCode).json({
     message,
     stack: process.env.NODE_ENV === 'production' ? null : err.stack,

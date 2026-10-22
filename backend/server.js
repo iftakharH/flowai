@@ -23,6 +23,7 @@ const reportRoutes = require('./routes/reportRoutes.js');
 const quoteRoutes = require('./routes/quoteRoutes.js');
 const adminRoutes = require('./routes/adminRoutes.js');
 const accountRoutes = require('./routes/accountRoutes.js');
+const onboardingRoutes = require('./routes/onboardingRoutes.js');
 
 const app = express();
 
@@ -67,10 +68,14 @@ app.use(
   })
 );
 
-// Rate limit
+// Rate limit. A single app screen can issue 6-8 API calls, so the old
+// 100/15min ceiling locked normal users out during a session.
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100,
+  max: 600,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+  message: { success: false, message: 'Too many requests. Please try again in a few minutes.' },
 });
 app.use('/api', limiter);
 
@@ -88,6 +93,7 @@ app.use('/api/reports', reportRoutes);
 app.use('/api/quotes', quoteRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/accounts', accountRoutes);
+app.use('/api/onboarding', onboardingRoutes);
 
 // Backward-compatible route aliases for clients missing the /api prefix.
 app.use('/insights', insightRoutes);

@@ -1,12 +1,15 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Activity,
   ArrowDownRight,
   ArrowUpRight,
   BarChart3,
+  CalendarDays,
   Check,
   CircleAlert,
   Clock3,
+  Plus,
   ShieldCheck,
   Sparkles,
   Target,
@@ -29,7 +32,6 @@ import {
 import AppLayout from '../components/AppLayout';
 import AffordabilityWidget from '../components/AffordabilityWidget';
 import ProGate from '../components/ProGate';
-import QuoteRotator from '../components/QuoteRotator';
 import api from '../services/api';
 import { formatCompact, formatCurrency } from '../utils/format';
 
@@ -66,6 +68,7 @@ const Metric = ({ label, value, detail, tone = 'sage', trend }) => (
 
 const Dashboard = () => {
   const [summary, setSummary] = useState(null);
+  const [weekly, setWeekly] = useState(null);
   const [flowSeries, setFlowSeries] = useState({ daily: [], monthly: [] });
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -77,25 +80,12 @@ const Dashboard = () => {
     setLoading(true);
     setError('');
     try {
-      const [sumRes, flowRes, txRes] = await Promise.all([
-        api.get('/insights/summary'),
-        api.get('/insights/flow'),
-        api.get('/transactions?limit=5'),
-      ]);
-      setSummary(sumRes.data || {});
-      setFlowSeries(flowRes.data || { daily: [], monthly: [] });
-      setTransactions(txRes.data?.transactions || []);
-      Promise.allSettled([
-        api.get('/smart/recurring'),
-        api.get('/smart/anomalies'),
-        api.get('/smart/forecast'),
-      ]).then(([recurring, anomalies, forecast]) => {
-        setSmart({
-          recurring: recurring.status === 'fulfilled' ? recurring.value.data.items || [] : [],
-          anomalies: anomalies.status === 'fulfilled' ? anomalies.value.data.items || [] : [],
-          forecast: forecast.status === 'fulfilled' ? forecast.value.data : null,
-        });
-      });
+      const { data } = await api.get('/insights/overview');
+      setSummary(data.summary || {});
+      setWeekly(data.weekly || null);
+      setFlowSeries(data.flow || { daily: [], monthly: [] });
+      setTransactions(data.recentTransactions || []);
+      setSmart(data.smart || { recurring: [], anomalies: [], forecast: null });
     } catch (err) {
       console.error('FlowAI: failed to load overview', err);
       setError(err.response?.data?.message || 'The overview could not be loaded.');
@@ -112,7 +102,7 @@ const Dashboard = () => {
     const now = new Date();
     const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
     const daysPassed = now.getDate() || 1;
-    const daysLeft = Math.max(1, daysInMonth - daysPassed);
+    const daysLeft = Math.max(1, daysInMonth - daysPassed + 1);
     const thisIncome = Number(summary?.monthIncome) || 0;
     const thisExpense = Number(summary?.monthExpense) || 0;
     const lastIncome = Number(summary?.lastMonthIncome) || 0;
@@ -145,8 +135,13 @@ const Dashboard = () => {
         income: item.income,
         expense: item.expense,
       })),
+      weekSpend: Number(weekly?.currentSpend) || 0,
+      weekPrevious: Number(weekly?.previousSpend) || 0,
+      weekChange: weekly?.changePercent ?? null,
+      weekEntries: Number(weekly?.transactionCount) || 0,
+      weekTopCategory: weekly?.topCategory || null,
     };
-  }, [flowSeries, summary]);
+  }, [flowSeries, summary, weekly]);
 
   const notes = useMemo(() => {
     const items = [];
@@ -181,17 +176,34 @@ const Dashboard = () => {
     return items;
   }, [metrics]);
 
-  const monthName = new Intl.DateTimeFormat('en-US', { month: 'long' }).format(new Date());
+  const weeklyNote = useMemo(() => {
+    if (!weekly || metrics.weekEntries === 0) {
+      return 'Add one entry this week and FlowAI will start a weekly read.';
+    }
+    if (metrics.weekChange === null) {
+      return `You spent ${formatCurrency(metrics.weekSpend)} this week. Next week, FlowAI can compare it.`;
+    }
+    if (metrics.weekChange <= 0) {
+      return `You spent ${formatCurrency(Math.abs(metrics.weekSpend - metrics.weekPrevious))} less than last week. Keep the pace.`;
+    }
+    return `Spending is up ${formatCurrency(metrics.weekSpend - metrics.weekPrevious)} versus last week${metrics.weekTopCategory ? `. ${metrics.weekTopCategory.name} is the main driver.` : '.'}`;
+  }, [weekly, metrics]);
+
+  const todayLabel = new Intl.DateTimeFormat('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+  }).format(new Date());
 
   if (loading) {
     return (
       <AppLayout>
         <div className="space-y-7">
-          <div className="h-40 animate-pulse rounded-2xl bg-[#e7ebe4]" />
+          <div className="h-40 animate-pulse rounded-2xl bg-[var(--surface-3)]" />
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
-            {[1, 2, 3].map((item) => <div key={item} className="h-28 animate-pulse rounded-xl bg-[#e7ebe4]" />)}
+            {[1, 2, 3].map((item) => <div key={item} className="h-28 animate-pulse rounded-xl bg-[var(--surface-3)]" />)}
           </div>
-          <div className="h-80 animate-pulse rounded-2xl bg-[#e7ebe4]" />
+          <div className="h-80 animate-pulse rounded-2xl bg-[var(--surface-3)]" />
         </div>
       </AppLayout>
     );
@@ -215,6 +227,7 @@ const Dashboard = () => {
   const savingsRate = metrics.thisIncome > 0
     ? Math.max(0, Math.round(((metrics.thisIncome - metrics.thisExpense) / metrics.thisIncome) * 100))
     : 0;
+  const projectedKeep = metrics.thisIncome - metrics.projectedExpense;
   const balanceProgress = metrics.balance > 0 ? Math.min(100, Math.max(8, (metrics.balance / Math.max(metrics.thisIncome, metrics.balance, 1)) * 100)) : 4;
 
   return (
@@ -222,17 +235,35 @@ const Dashboard = () => {
       <div className="space-y-7 pb-4">
         <header className="page-header">
           <div>
-            <p className="eyebrow">{monthName} overview</p>
-            <h1 className="page-title">Know what is available.</h1>
-            <p className="page-subtitle">A clear read of your money today, with useful guidance for the next decision.</p>
+            <p className="eyebrow">{todayLabel}</p>
+            <h1 className="page-title">Your money today.</h1>
+            <p className="page-subtitle">See what is safe, what changed, and what needs attention.</p>
           </div>
-          <div className="panel flex items-center gap-3 px-4 py-3 text-sm text-[var(--muted)]">
-            <Activity size={17} className="text-[var(--sage-dark)]" />
-            <span>{metrics.txCount} recorded {metrics.txCount === 1 ? 'transaction' : 'transactions'}</span>
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="panel flex items-center gap-3 px-4 py-3 text-sm text-[var(--muted)]">
+              <Activity size={17} className="text-[var(--sage-dark)]" />
+              <span>{metrics.txCount} recorded {metrics.txCount === 1 ? 'transaction' : 'transactions'}</span>
+            </div>
+            <Link to="/transactions?new=1" className="button-primary">
+              <Plus size={16} /> Log spending
+            </Link>
           </div>
         </header>
 
-        <QuoteRotator />
+        {metrics.txCount === 0 && (
+          <section className="panel getting-started p-5 md:p-7">
+            <span className="getting-started-icon"><Sparkles size={22} /></span>
+            <div className="getting-started-copy">
+              <p className="section-note">Start here</p>
+              <h2 className="section-title">One entry is enough to begin.</h2>
+              <p>Add income and one recent purchase. FlowAI turns them into a safe-to-spend number and a weekly read.</p>
+              <div className="getting-started-actions">
+                <Link to="/transactions?new=1" className="button-primary"><Plus size={16} /> Add your first entry</Link>
+                <Link to="/budget" className="button-secondary">Set a budget</Link>
+              </div>
+            </div>
+          </section>
+        )}
 
         <section className="panel balance-panel p-5 md:p-7">
           <div className="flex flex-col justify-between gap-7 md:flex-row md:items-end">
@@ -259,10 +290,39 @@ const Dashboard = () => {
           </div>
         </section>
 
-        <section className="grid grid-cols-1 gap-5 sm:grid-cols-3">
+        <section className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
           <Metric label="Income this month" value={formatCurrency(metrics.thisIncome)} detail="Money in" trend={metrics.incomeTrend} />
           <Metric label="Spent this month" value={formatCurrency(metrics.thisExpense)} detail="Money out" tone="coral" trend={metrics.expenseTrend} />
           <Metric label="Comfortable to spend today" value={formatCurrency(metrics.safeToSpend)} detail="Based on your balance and days left" />
+          <Metric label="Spent this week" value={formatCurrency(metrics.weekSpend)} detail={metrics.weekChange === null ? 'First week of tracking' : `${metrics.weekChange > 0 ? '+' : ''}${metrics.weekChange}% vs last week`} tone="coral" />
+        </section>
+
+        <section className="panel weekly-recap p-5 md:p-7">
+          <div className="section-heading">
+            <div><p className="section-note">The last seven days</p><h2 className="section-title">Your week, in one read.</h2></div>
+            <CalendarDays size={19} className="text-[var(--sage-dark)]" />
+          </div>
+          <div className="weekly-recap-grid">
+            <div>
+              <span>Spent this week</span>
+              <strong>{formatCurrency(metrics.weekSpend)}</strong>
+              <p>{metrics.weekChange === null ? 'No previous week to compare yet.' : `${metrics.weekChange > 0 ? 'Up' : 'Down'} ${Math.abs(metrics.weekChange)}% versus last week.`}</p>
+            </div>
+            <div>
+              <span>Top category</span>
+              <strong>{metrics.weekTopCategory?.name || 'No category yet'}</strong>
+              <p>{metrics.weekTopCategory ? `${formatCurrency(metrics.weekTopCategory.amount)} of this week's spend.` : 'Add an expense to see the pattern.'}</p>
+            </div>
+            <div>
+              <span>Entries this week</span>
+              <strong>{metrics.weekEntries}</strong>
+              <p>{metrics.weekEntries ? 'Every entry makes the next read sharper.' : 'One entry is enough to begin.'}</p>
+            </div>
+          </div>
+          <div className="weekly-recap-note">
+            <Sparkles size={16} />
+            <p>{weeklyNote}</p>
+          </div>
         </section>
 
         <section className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.5fr)_minmax(19rem,0.65fr)]">
@@ -273,8 +333,8 @@ const Dashboard = () => {
                 <h2 className="section-title">Flow over time</h2>
               </div>
               <div className="chart-tabs" role="tablist" aria-label="Flow chart range">
-                <button type="button" className={activeChart === 'flow' ? 'chart-tab-active' : ''} onClick={() => setActiveChart('flow')}>7 days</button>
-                <button type="button" className={activeChart === 'compare' ? 'chart-tab-active' : ''} onClick={() => setActiveChart('compare')}>6 months</button>
+                <button type="button" role="tab" aria-selected={activeChart === 'flow'} className={activeChart === 'flow' ? 'chart-tab-active' : ''} onClick={() => setActiveChart('flow')}>7 days</button>
+                <button type="button" role="tab" aria-selected={activeChart === 'compare'} className={activeChart === 'compare' ? 'chart-tab-active' : ''} onClick={() => setActiveChart('compare')}>6 months</button>
               </div>
             </div>
             <div className="chart-wrap">
@@ -342,6 +402,10 @@ const Dashboard = () => {
               <div className="signal-card"><span>Unusual activity</span><strong>{smart.anomalies.length}</strong><p>{smart.anomalies[0]?.reason || 'Nothing unusual in the last 90 days.'}</p></div>
               <div className="signal-card"><span>Next 30 days</span><strong>{smart.forecast ? formatCurrency(smart.forecast.next30Days) : '--'}</strong><p>{smart.forecast ? `${formatCurrency(smart.forecast.projectedBalance)} projected balance.` : 'Forecast appears once there is enough history.'}</p></div>
             </div>
+            <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-[var(--soft-line)] pt-4">
+              <span className="text-xs text-[var(--muted)]">Detected from your last 400 days of entries.</span>
+              <Link to="/subscriptions" className="text-sm font-semibold text-[var(--sage-dark)] hover:underline">Open subscription watch</Link>
+            </div>
           </ProGate>
         </section>
 
@@ -392,10 +456,10 @@ const Dashboard = () => {
             </div>
             <div className="score-strip">
               <div>
-                <p className="section-note">Money health</p>
-                <strong>{metrics.txCount ? Math.min(100, Math.round(Math.max(0, savingsRate) * 0.7 + 30)) : '--'}</strong>
+                <p className="section-note">{projectedKeep >= 0 ? 'Projected to keep' : 'Projected shortfall'}</p>
+                <strong>{metrics.txCount ? formatCurrency(Math.abs(projectedKeep)) : '--'}</strong>
               </div>
-              <p>{metrics.txCount ? 'Built from your income, spend, and daily pace.' : 'Add a transaction to start the reading.'}</p>
+              <p>{metrics.txCount ? 'If the current pace holds through month end.' : 'Add a transaction to start the reading.'}</p>
             </div>
           </div>
         </section>

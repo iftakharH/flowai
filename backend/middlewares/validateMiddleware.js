@@ -4,7 +4,11 @@ const validate = (schema) => (req, res, next) => {
     next();
   } catch (error) {
     res.status(400);
-    next(new Error(error.errors.map((e) => e.message).join(', ')));
+    const issues = Array.isArray(error.issues) ? error.issues : [];
+    const message = issues.length
+      ? issues.map((issue) => issue.message).join(', ')
+      : error.message || 'Invalid request body';
+    next(new Error(message));
   }
 };
 

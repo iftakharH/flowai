@@ -1,7 +1,10 @@
 const Transaction = require('../models/Transaction.js');
+const { clearUser } = require('../utils/cache.js');
 
 const createTransaction = async (userId, data) => {
-  return await Transaction.create({ ...data, user: userId });
+  const transaction = await Transaction.create({ ...data, user: userId });
+  clearUser(userId);
+  return transaction;
 };
 
 const getTransactions = async (userId, query) => {
@@ -35,24 +38,29 @@ const updateTransaction = async (userId, transactionId, data) => {
   if (!transaction) throw new Error('Transaction not found');
 
   // Scope the update by user as well so ownership cannot be bypassed.
-  return await Transaction.findOneAndUpdate(
+  const updated = await Transaction.findOneAndUpdate(
     { _id: transactionId, user: userId },
     data,
     { new: true, runValidators: true }
   );
+  clearUser(userId);
+  return updated;
 };
 
 const deleteTransaction = async (userId, transactionId) => {
   const transaction = await Transaction.findOne({ _id: transactionId, user: userId });
   if (!transaction) throw new Error('Transaction not found');
-  
-  await Transaction.deleteOne({ _id: transactionId });
+
+  await Transaction.deleteOne({ _id: transactionId, user: userId });
+  clearUser(userId);
   return true;
 };
 
 const insertManyTransactions = async (userId, transactions) => {
   const data = transactions.map(t => ({ ...t, user: userId }));
-  return await Transaction.insertMany(data);
+  const inserted = await Transaction.insertMany(data);
+  clearUser(userId);
+  return inserted;
 };
 
 module.exports = {

@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="FlowAI">
+  <rect width="512" height="512" rx="116" fill="#0b0f0d"/>
+  <path d="M92 268h68l34-102 68 204 50-136 30 34h78" fill="none" stroke="#c7dbc1" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="420" cy="268" r="14" fill="#c7dbc1"/>
+</svg>

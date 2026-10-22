@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import {
   BrowserRouter as Router,
   Routes,
@@ -6,7 +6,6 @@ import {
   Navigate,
   useLocation,
 } from 'react-router-dom';
-import { AnimatePresence, motion } from 'framer-motion';
 import { Loader2 } from 'lucide-react';
 
 import ApiProvider from './components/ApiProvider';
@@ -14,17 +13,23 @@ import ProtectedRoute from './components/ProtectedRoute';
 import ErrorBoundary from './components/ErrorBoundary';
 import Login from './pages/Login';
 import Register from './pages/Register';
-import Dashboard from './pages/Dashboard';
-import Transactions from './pages/Transactions';
-import Budget from './pages/Budget';
 import Landing from './pages/Landing';
-import Settings from './pages/Settings';
-import Reports from './pages/Reports';
-import Goals from './pages/Goals';
-import Admin from './pages/Admin';
-import Accounts from './pages/Accounts';
 import useAuthContext from './context/useAuthContext';
+import useSettings from './context/useSettings';
 import { SettingsProvider } from './context/SettingsContext';
+
+// Authenticated pages are split so the public landing page and login stay light.
+// Dashboard is the biggest win because it pulls in Recharts.
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const Transactions = lazy(() => import('./pages/Transactions'));
+const Budget = lazy(() => import('./pages/Budget'));
+const Settings = lazy(() => import('./pages/Settings'));
+const Reports = lazy(() => import('./pages/Reports'));
+const Goals = lazy(() => import('./pages/Goals'));
+const Admin = lazy(() => import('./pages/Admin'));
+const Accounts = lazy(() => import('./pages/Accounts'));
+const Subscriptions = lazy(() => import('./pages/Subscriptions'));
+const Onboarding = lazy(() => import('./pages/Onboarding'));
 
 // ─── Loading Screen ─────────────────────────────────────────────────────────
 const LoadingScreen = () => (
@@ -38,28 +43,31 @@ const LoadingScreen = () => (
 
 // ─── Page Transition Wrapper ─────────────────────────────────────────────────
 const PageWrapper = ({ children }) => (
-  <motion.div
-    initial={{ opacity: 0, y: 12 }}
-    animate={{ opacity: 1, y: 0 }}
-    exit={{ opacity: 0, y: -12 }}
-    transition={{ duration: 0.25, ease: 'easeInOut' }}
-    className="w-full h-full"
-  >
+  <div className="page-transition w-full h-full">
     {children}
-  </motion.div>
+  </div>
 );
 
 // ─── Routes with Auth Guards ────────────────────────────────────────────────
 function AnimatedRoutes() {
   const location = useLocation();
   const { loading, isSignedIn } = useAuthContext();
+  const { settings } = useSettings();
 
   if (loading) {
     return <LoadingScreen />;
   }
 
+  if (
+    isSignedIn
+    && settings.onboardingCompleted === false
+    && location.pathname !== '/onboarding'
+  ) {
+    return <Navigate to="/onboarding" replace />;
+  }
+
   return (
-    <AnimatePresence mode="wait">
+    <Suspense fallback={<LoadingScreen />}>
       <Routes location={location} key={location.pathname}>
         <Route
           path="/login"
@@ -69,6 +77,8 @@ function AnimatedRoutes() {
           path="/register"
           element={isSignedIn ? <Navigate to="/" replace /> : <PageWrapper><Register /></PageWrapper>}
         />
+
+        <Route path="/onboarding" element={<ProtectedRoute><PageWrapper><Onboarding /></PageWrapper></ProtectedRoute>} />
 
         <Route path="/" element={isSignedIn ? <ProtectedRoute><PageWrapper><Dashboard /></PageWrapper></ProtectedRoute> : <PageWrapper><Landing /></PageWrapper>} />
         <Route
@@ -84,13 +94,14 @@ function AnimatedRoutes() {
           element={<ProtectedRoute><PageWrapper><Settings /></PageWrapper></ProtectedRoute>}
         />
         <Route path="/reports" element={<ProtectedRoute><PageWrapper><Reports /></PageWrapper></ProtectedRoute>} />
+        <Route path="/subscriptions" element={<ProtectedRoute><PageWrapper><Subscriptions /></PageWrapper></ProtectedRoute>} />
         <Route path="/goals" element={<ProtectedRoute><PageWrapper><Goals /></PageWrapper></ProtectedRoute>} />
         <Route path="/admin" element={<ProtectedRoute><PageWrapper><Admin /></PageWrapper></ProtectedRoute>} />
         <Route path="/accounts" element={<ProtectedRoute><PageWrapper><Accounts /></PageWrapper></ProtectedRoute>} />
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-    </AnimatePresence>
+    </Suspense>
   );
 }
 
