@@ -31,7 +31,7 @@ const primeUserSession = async (firebaseUser) => {
     return null;
   }
 
-  const token = await firebaseUser.getIdToken(true);
+  const token = await firebaseUser.getIdToken();
   setCachedToken(token);
   return token;
 };
@@ -59,9 +59,9 @@ export const AuthProvider = ({ children }) => {
     loading,
     isSignedIn: !!user,
     signInWithEmail: async (email, password) => {
-      const credentials = await signInWithEmailAndPassword(auth, email, password);
-      await primeUserSession(credentials.user);
-      return credentials;
+      // onAuthStateChanged primes the session and flips `loading` off, so
+      // there is no need to fetch the token a second time here.
+      return signInWithEmailAndPassword(auth, email, password);
     },
     signUpWithEmail: async (email, password, firstName, lastName) => {
       const credentials = await createUserWithEmailAndPassword(auth, email, password);
@@ -69,14 +69,9 @@ export const AuthProvider = ({ children }) => {
       if (name) {
         await updateProfile(credentials.user, { displayName: name });
       }
-      await primeUserSession(credentials.user);
       return credentials;
     },
-    signInWithGoogle: async () => {
-      const credentials = await signInWithPopup(auth, googleProvider);
-      await primeUserSession(credentials.user);
-      return credentials;
-    },
+    signInWithGoogle: async () => signInWithPopup(auth, googleProvider),
     logout: () => signOut(auth),
   }), [user, loading]);
 

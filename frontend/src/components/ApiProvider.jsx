@@ -13,7 +13,10 @@ const ApiProvider = ({ children }) => {
           const cachedToken = typeof window !== 'undefined'
             ? window.sessionStorage.getItem(TOKEN_STORAGE_KEY)
             : null;
-          const token = user ? await user.getIdToken(true) : cachedToken;
+          // getIdToken() reuses the cached token and only refreshes when it
+          // is close to expiry. Forcing a refresh on every request adds a
+          // network round-trip to Firebase and makes every page feel slow.
+          const token = user ? await user.getIdToken() : cachedToken;
           if (token) {
             config.headers = config.headers || {};
             config.headers.Authorization = `Bearer ${token}`;

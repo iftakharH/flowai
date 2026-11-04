@@ -1,5 +1,19 @@
 const { initializeFirebaseAdmin } = require('../config/firebaseAdmin.js');
 
+// Errors caused by the caller's token -> 401. Anything else (network,
+// misconfiguration, Google outage) is a server problem -> 503.
+const TOKEN_ERROR_CODES = new Set([
+  'auth/id-token-expired',
+  'auth/id-token-revoked',
+  'auth/argument-error',
+  'auth/invalid-id-token',
+  'auth/invalid-signature',
+  'auth/invalid-issuer',
+  'auth/invalid-audience',
+  'auth/user-disabled',
+  'auth/user-not-found',
+]);
+
 const protect = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization || '';
@@ -23,15 +37,20 @@ const protect = async (req, res, next) => {
     };
     next();
   } catch (error) {
-    const statusCode = error.code === 'auth/id-token-expired' || error.code === 'auth/argument-error'
-      ? 401
-      : 500;
+    const code = error?.code || 'unknown';
+    // Never log the token itself; the code is enough to diagnose config issues.
+    console.error(`[auth] Firebase ID token verification failed (${code}): ${error?.message || error}`);
 
-    return res.status(statusCode).json({
+    if (TOKEN_ERROR_CODES.has(code)) {
+      return res.status(401).json({
+        success: false,
+        message: 'Unauthorized - invalid or expired session. Please sign in again.',
+      });
+    }
+
+    return res.status(503).json({
       success: false,
-      message: statusCode === 401
-        ? 'Unauthorized - invalid Firebase ID token'
-        : 'Auth verification exception',
+      message: 'Authentication is temporarily unavailable. Please try again.',
     });
   }
 };
