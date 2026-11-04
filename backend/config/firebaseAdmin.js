@@ -1,4 +1,5 @@
-const admin = require('firebase-admin');
+const { initializeApp, getApps, cert } = require('firebase-admin/app');
+const { getAuth } = require('firebase-admin/auth');
 
 // The Firebase project id is a public identifier (it ships in the browser
 // bundle), so it is a safe fallback when the deployment is missing env vars.
@@ -41,11 +42,11 @@ const getServiceAccount = () => {
   return null;
 };
 
-let initialized = false;
+let firebaseAuth = null;
 
 const initializeFirebaseAdmin = () => {
-  if (admin.apps.length) {
-    return admin.auth();
+  if (firebaseAuth) {
+    return firebaseAuth;
   }
 
   const projectId = getProjectId();
@@ -57,7 +58,7 @@ const initializeFirebaseAdmin = () => {
   // audience check. A malformed service account must not break sign-in.
   if (serviceAccount) {
     try {
-      options.credential = admin.credential.cert(serviceAccount);
+      options.credential = cert(serviceAccount);
     } catch (error) {
       console.error(
         `[firebase] service account rejected (${error.message}); continuing with public-key token verification only.`
@@ -65,18 +66,16 @@ const initializeFirebaseAdmin = () => {
     }
   }
 
-  admin.initializeApp(options);
+  const app = getApps().length ? getApps()[0] : initializeApp(options);
+  firebaseAuth = getAuth(app);
 
-  if (!initialized) {
-    console.log(
-      `[firebase] admin initialized (project=${projectId}, credentials=${
-        options.credential ? 'service-account' : 'verify-only'
-      })`
-    );
-    initialized = true;
-  }
+  console.log(
+    `[firebase] admin initialized (project=${projectId}, credentials=${
+      options.credential ? 'service-account' : 'verify-only'
+    })`
+  );
 
-  return admin.auth();
+  return firebaseAuth;
 };
 
 module.exports = {
